@@ -8,7 +8,7 @@
     "remoteUser": "devuser",
     "overrideCommand": false,
     // NOTE: I'm using podman on fedora. docker isn't tested yet.
-    "runArgs": ["--systemd", "always", "--tty"],
+    "runArgs": ["--systemd", "always", "--security-opt", "label=disable", "--tty"],
     "privileged": false,
     "capAdd": [
         "SYS_PTRACE",

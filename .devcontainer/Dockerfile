@@ -27,6 +27,8 @@ dnf remove --assumeyes \
 
 dnf makecache
 
+dnf upgrade --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes
+
 dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
  dnf-plugins-core epel-release \
 ;
@@ -34,9 +36,7 @@ dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
 rpmkeys --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
 crb enable
 
-dnf makecache
-
-dnf upgrade --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes
+dnf makecache --repo=crb --repo=epel
 
 dnf install --setopt=keepcache=1 --allowerasing --assumeyes \
   findutils grep gawk sed which \
@@ -47,13 +47,11 @@ dnf install --setopt=keepcache=1 --allowerasing --assumeyes \
   glibc-langpack-en \
 ;
 
-
 ################################################################################
 
 find /usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
 
 systemctl mask \
-  dev-hugepages.mount \
   sys-fs-fuse-connections.mount \
   sys-kernel-config.mount \
   sys-kernel-debug.mount \
@@ -67,6 +65,7 @@ systemctl mask \
   systemd-machine-id-commit.service \
   systemd-update-utmp.service \
   systemd-update-utmp-runlevel.service \
+  systemd-update-done.service \
 ;
 
 systemctl disable \
