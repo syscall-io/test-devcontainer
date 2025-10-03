@@ -1,9 +1,16 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
+    paths:
+      - '.github/workflows/ci.yml'
+      - 'image/**'
   pull_request:
+    paths:
+      - '.github/workflows/ci.yml'
+      - 'image/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -20,6 +27,8 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
+    env:
+      SOURCE_DATE_EPOCH: 0
     permissions:
       packages: write
       contents: write
@@ -31,27 +40,32 @@ jobs:
           # Reproduce the exact commit hash value
           fetch-depth: 0
 
-      - name: Gather SOURCE_DATE_EPOCH
-        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
-
       - name: Setup Docker buildx
         id: setup-buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        with:
+          buildkitd-flags: >-
+            --oci-worker-snapshotter=stargz
 
-      - name: Buildkit cache
-        id: buildkit-cache
+      - name: "Cache volume: dnf"
+        id: cache-volume-dnf
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: buildkit-cache
-          key: buildkit-cache-${{ runner.arch }}
+          path: buildkit-cache-dnf
+          key: buildkit-cache-dnf-${{ runner.arch }}
 
-      - name: Inject Buildkit cache
+      - name: "Inject Buildkit cache"
         uses: reproducible-containers/buildkit-cache-dance@5b81f4d29dc8397a7d341dba3aeecc7ec54d6361 # v3.3.0
         with:
           builder: ${{ steps.setup-buildx.outputs.name }}
-          cache-dir: buildkit-cache
-          dockerfile: image/Dockerfile
           save-always: true
+          cache-map: >-
+            {
+              "buildkit-cache-dnf": {
+                "target": "/var/cache/dnf",
+                "id": "dnf"
+              }
+            }
 
       - name: Login to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
@@ -60,46 +74,49 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image - stage0
+      - name: "Build image: stage0"
+        id: build-stage0
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: image/
-          file: image/Dockerfile
-          target: stage0
+          context: image/stage0/
+          file: image/stage0/Dockerfile
           cache-from: type=gha,scope=stage0-${{ runner.arch }}
           cache-to: type=gha,scope=stage0-${{ runner.arch }},mode=max
+          outputs: type=oci,dest=${{ runner.temp }}/stage0-image,tar=false,oci-mediatypes=true,compression=estargz,force-compression=true
 
-      - name: Build image - stage1
+      - name: "Build image: stage1"
+        id: build-stage1
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: image/
-          file: image/Dockerfile
-          target: stage1
-          cache-from: |
-            type=gha,scope=stage0-${{ runner.arch }}
-            type=gha,scope=stage1-${{ runner.arch }}
+          context: image/stage1/
+          file: image/stage1/Dockerfile
+          build-contexts: |
+            stage0=oci-layout://${{ runner.temp }}/stage0-image
+          cache-from: type=gha,scope=stage1-${{ runner.arch }}
           cache-to: type=gha,scope=stage1-${{ runner.arch }},mode=max
+          outputs: type=oci,dest=${{ runner.temp }}/stage1-image,tar=false,oci-mediatypes=true,compression=estargz,force-compression=true
 
-      - name: Build image - final
-        id: build-final
+      - name: "Build image: stage2"
+        id: build-stage2
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: image/
-          file: image/Dockerfile
-          cache-from: |
-            type=gha,scope=stage1-${{ runner.arch }}
-            type=gha,scope=final-${{ runner.arch }}
-          cache-to: type=gha,scope=final-${{ runner.arch }},mode=max
+          context: image/stage2/
+          file: image/stage2/Dockerfile
+          build-contexts: |
+            stage0=oci-layout://${{ runner.temp }}/stage0-image
+            stage1=oci-layout://${{ runner.temp }}/stage1-image
+          cache-from: type=gha,scope=stage2-${{ runner.arch }}
+          cache-to: type=gha,scope=stage2-${{ runner.arch }},mode=max
+          load: false
           sbom: true
           provenance: true
-          push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,push=true,push-by-digest=true,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,force-compression=true
 
       - name: Export metadata
         run: |
           mkdir -p ${{ runner.temp }}/image-metadata
-          echo '${{ steps.build-final.outputs.metadata}}' > '${{ runner.temp }}/image-metadata/metadata.json'
+          echo '${{ steps.build-stage2.outputs.metadata}}' > '${{ runner.temp }}/image-metadata/metadata.json'
 
       - name: Upload metadata
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -141,7 +158,7 @@ jobs:
           digests=( $(cd "${{ runner.temp }}/image-metadata" && cat metadata-*/metadata.json | jq -r '.["containerimage.digest"]') )
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:git-${{ github.sha }} \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@%s ' "${digests[@]}") \
           ;
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:git-${{ github.sha }}
