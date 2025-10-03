@@ -4,11 +4,14 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-image:
@@ -17,8 +20,13 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
+    permissions:
+      packages: write
+      contents: write
+
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #  v5.0.0
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #  v5.0.0
         with:
           # Reproduce the exact commit hash value
           fetch-depth: 0
@@ -45,30 +53,94 @@ jobs:
           dockerfile: .devcontainer/Dockerfile
           save-always: true
 
+      - name: Login to Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build image - stage0
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        env:
-          SOURCE_DATE_EPOCH: ${{ env.COMMIT_TIMESTAMP }}
         with:
           context: .devcontainer/
           file: .devcontainer/Dockerfile
           target: stage0
+          cache-from: type=gha,scope=stage0-${{ runner.arch }}
+          cache-to: type=gha,scope=stage0-${{ runner.arch }},mode=max
 
       - name: Build image - stage1
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        env:
-          SOURCE_DATE_EPOCH: ${{ env.COMMIT_TIMESTAMP }}
         with:
           context: .devcontainer/
           file: .devcontainer/Dockerfile
           target: stage1
+          cache-from: |
+            type=gha,scope=stage0-${{ runner.arch }}
+            type=gha,scope=stage1-${{ runner.arch }}
+          cache-to: type=gha,scope=stage1-${{ runner.arch }},mode=max
 
       - name: Build image - final
+        id: build-final
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        env:
-          SOURCE_DATE_EPOCH: ${{ env.COMMIT_TIMESTAMP }}
         with:
           context: .devcontainer/
           file: .devcontainer/Dockerfile
+          cache-from: |
+            type=gha,scope=stage1-${{ runner.arch }}
+            type=gha,scope=final-${{ runner.arch }}
+          cache-to: type=gha,scope=final-${{ runner.arch }},mode=max
           sbom: true
           provenance: true
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export metadata
+        run: |
+          mkdir -p ${{ runner.temp }}/image-metadata
+          echo '${{ steps.build-final.outputs.metadata}}' > '${{ runner.temp }}/image-metadata/metadata.json'
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: metadata-${{ runner.arch }}
+          path: ${{ runner.temp }}/image-metadata/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs:
+      - build-image
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Download previous metadata
+        id: collect-metadata
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          pattern: metadata-*
+          path: ${{ runner.temp }}/image-metadata
+
+      - name: Setup Docker buildx
+        id: setup-buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Login to Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        run: |
+          digests=( $(cd "${{ runner.temp }}/image-metadata" && cat metadata-*/metadata.json | jq -r '.["containerimage.digest"]') )
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@%s ' "${digests[@]}") \
+          ;
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
