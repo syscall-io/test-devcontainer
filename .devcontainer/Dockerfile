@@ -47,7 +47,7 @@ dnf install --setopt=keepcache=1 --allowerasing --assumeyes \
   glibc-langpack-en \
 ;
 
-################################################################################
+########################################
 
 find /usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
 
@@ -97,6 +97,90 @@ WORKDIR /
 USER 0:0
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
+
+
+################################################################################
+
+
+FROM base AS stage1
+
+ARG SYSTEMD_OFFLINE=1
+
+RUN --mount=type=cache,id=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+dnf install --setopt=keepcache=1 --assumeyes \
+  sudo polkit \
+  which util-linux moreutils diffutils procps-ng psmisc file less lsof xxd \
+  ripgrep perl-interpreter \
+  iputils iproute hostname \
+  socat nmap-ncat git-core git-lfs wget rsync openssh-clients ldns-utils \
+  tree \
+  sqlite \
+  gnupg2 \
+  zip cpio \
+  tmux \
+  man-db \
+  ncurses readline \
+;
+
+########################################
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  gcc gcc-c++ clang lld binutils elfutils \
+  make patch autoconf automake \
+  libtool libtool-ltdl pkgconf-pkg-config \
+  llvm clang-tools-extra \
+  strace gdb-gdbserver lldb \
+  flex bison byacc \
+  gettext \
+  rpm-build \
+  bash-completion \
+;
+
+########################################
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  zlib-devel lz4-devel libzstd-devel \
+  gettext-devel ncurses-devel readline-devel \
+  elfutils-libelf-devel libunwind-devel \
+  nss-devel openssl-devel \
+  libcurl-devel \
+  libxml2-devel libxslt-devel \
+  sqlite-devel \
+  systemd-devel libcap-devel \
+  libevent-devel liburing-devel \
+  numactl-devel \
+  libicu-devel \
+  uuid-devel \
+  swig \
+;
+
+########################################
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  xterm \
+;
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  python3.12 python3.12-{pip,cffi,lxml,cryptography} \
+  python3.12-devel \
+;
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  nodejs22 nodejs22-devel nodejs-npm \
+;
+
+dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+  java-21-openjdk-devel \
+;
+
+########################################
+
+alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
+RUNEOF
+
+################################################################################
 
 FROM base AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
@@ -225,96 +309,18 @@ if [[ ! -f "$rustup_archive" ]]; then
   mv "$tmpfile" "$rustup_archive"
 fi
 
-chmod 755 "$rustup_archive"
-
 cd /tmp/
 
-ln -snf "$rustup_archive" rustup-init
+install "$rustup_archive" rustup-init
 ./rustup-init -y --verbose --no-modify-path --profile minimal --default-host "$rust_arch" --default-toolchain none
 
 rm -rf -- /usr/local/rustup/toolchains/*/share/doc
 
 RUNEOF
 
-
-FROM base
-
-ARG SYSTEMD_OFFLINE=1
-
-RUN --mount=type=cache,id=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
-set -eux -o pipefail
-
-dnf install --setopt=keepcache=1 --assumeyes \
-  sudo polkit \
-  which util-linux moreutils diffutils procps-ng psmisc file less lsof xxd \
-  ripgrep perl-interpreter \
-  iputils iproute hostname \
-  socat nmap-ncat git-core git-lfs wget rsync openssh-clients ldns-utils \
-  tree \
-  sqlite \
-  gnupg2 \
-  zip cpio \
-  tmux \
-  man-db \
-  ncurses readline \
-;
-
 ################################################################################
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  gcc gcc-c++ clang lld binutils elfutils \
-  make patch autoconf automake \
-  libtool libtool-ltdl pkgconf-pkg-config \
-  llvm clang-tools-extra \
-  strace gdb-gdbserver lldb \
-  flex bison byacc \
-  gettext \
-  rpm-build \
-  bash-completion \
-;
-
-################################################################################
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  zlib-devel lz4-devel libzstd-devel \
-  gettext-devel ncurses-devel readline-devel \
-  elfutils-libelf-devel libunwind-devel \
-  nss-devel openssl-devel \
-  libcurl-devel \
-  libxml2-devel libxslt-devel \
-  sqlite-devel \
-  systemd-devel libcap-devel \
-  libevent-devel liburing-devel \
-  numactl-devel \
-  libicu-devel \
-  uuid-devel \
-  swig \
-;
-
-################################################################################
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  xterm \
-;
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  python3.12 python3.12-{pip,cffi,lxml,cryptography} \
-  python3.12-devel \
-;
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  nodejs22 nodejs22-devel nodejs-npm \
-;
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  java-21-openjdk-devel \
-;
-
-################################################################################
-
-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
-RUNEOF
-
+FROM stage1
 
 COPY --link --from=download-uv /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 
