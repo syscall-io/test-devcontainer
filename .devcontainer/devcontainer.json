@@ -1,7 +1,7 @@
 // For format details, see https://containers.dev/implementors/json_reference/ .
 {
     "name": "Test",
-    "image": "ghcr.io/containers/test-devcontainer:latest",
+    "image": "ghcr.io/hsw0/test-devcontainer:latest",
 
     "remoteUser": "devuser",
     "overrideCommand": false,
