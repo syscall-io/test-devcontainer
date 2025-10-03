@@ -50,7 +50,7 @@ jobs:
         with:
           builder: ${{ steps.setup-buildx.outputs.name }}
           cache-dir: buildkit-cache
-          dockerfile: .devcontainer/Dockerfile
+          dockerfile: image/Dockerfile
           save-always: true
 
       - name: Login to Container Registry
@@ -63,8 +63,8 @@ jobs:
       - name: Build image - stage0
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: .devcontainer/
-          file: .devcontainer/Dockerfile
+          context: image/
+          file: image/Dockerfile
           target: stage0
           cache-from: type=gha,scope=stage0-${{ runner.arch }}
           cache-to: type=gha,scope=stage0-${{ runner.arch }},mode=max
@@ -72,8 +72,8 @@ jobs:
       - name: Build image - stage1
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: .devcontainer/
-          file: .devcontainer/Dockerfile
+          context: image/
+          file: image/Dockerfile
           target: stage1
           cache-from: |
             type=gha,scope=stage0-${{ runner.arch }}
@@ -84,8 +84,8 @@ jobs:
         id: build-final
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: .devcontainer/
-          file: .devcontainer/Dockerfile
+          context: image/
+          file: image/Dockerfile
           cache-from: |
             type=gha,scope=stage1-${{ runner.arch }}
             type=gha,scope=final-${{ runner.arch }}
@@ -136,10 +136,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create manifest list and push
+      - name: Create manifest
         run: |
           digests=( $(cd "${{ runner.temp }}/image-metadata" && cat metadata-*/metadata.json | jq -r '.["containerimage.digest"]') )
           docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@%s ' "${digests[@]}") \
           ;
