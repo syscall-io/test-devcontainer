@@ -1,14 +1,16 @@
 // For format details, see https://containers.dev/implementors/json_reference/ .
 {
-    "name": "Default (Docker)",
+    "name": "Podman",
     "image": "ghcr.io/hsw0/test-devcontainer:latest",
 
     "remoteUser": "devuser",
     "overrideCommand": false,
     "runArgs": [
-        "--tty"
+        "--tty",
+        "--systemd", "always",
+        "--security-opt", "label=disable"
     ],
-    "privileged": true,
+    "privileged": false,
     "capAdd": [
         "SYS_PTRACE",
         "SYS_ADMIN",
