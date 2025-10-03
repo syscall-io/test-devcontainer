@@ -1,9 +1,7 @@
 // For format details, see https://containers.dev/implementors/json_reference/ .
 {
     "name": "Test",
-    "build": {
-        "dockerfile": "Dockerfile"
-    },
+    "image": "ghcr.io/containers/test-devcontainer:latest",
 
     "remoteUser": "devuser",
     "overrideCommand": false,
@@ -25,11 +23,21 @@
     "customizations": {
         "vscode": {
             "extensions": [
+                "ms-vscode.makefile-tools",
+                "EditorConfig.EditorConfig",
                 "ms-vscode.cpptools",
                 "llvm-vs-code-extensions.vscode-clangd",
                 "mesonbuild.mesonbuild",
                 "ms-vscode.cmake-tools",
-                "llvm-vs-code-extensions.lldb-dap"
+                "llvm-vs-code-extensions.lldb-dap",
+                "ms-python.python",
+                "ms-python.vscode-python-envs",
+                "ms-python.vscode-pylance",
+                "ms-python.debugpy",
+                "charliermarsh.ruff",
+                "ms-python.mypy-type-checker",
+                "esbenp.prettier-vscode",
+
             ]
         }
     }
