@@ -224,3 +224,9 @@ echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
 install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
 
 RUNEOF
+
+LABEL devcontainer.metadata='[{ \
+  "overrideCommand": false, \
+  "capAdd": [ "SYS_PTRACE", "SYS_ADMIN", "MKNOD" ], \
+  "remoteUser": "devuser" \
+}]'
