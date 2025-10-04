@@ -1,28 +1,14 @@
 // For format details, see https://containers.dev/implementors/json_reference/ .
 {
-    "name": "Podman",
+    "name": "For apple container",
     "image": "ghcr.io/hsw0/test-devcontainer:master",
 
     "remoteUser": "devuser",
     "overrideCommand": false,
     "runArgs": [
-        "--tty",
-        "--systemd", "always",
-        "--security-opt", "label=disable"
+        "--tty"
     ],
-    "privileged": false,
-    "capAdd": [
-        "SYS_PTRACE",
-        "SYS_ADMIN",
-        "MKNOD",
-        //"NET_ADMIN",
-        "NET_RAW",
-        "BPF",
-        "SYS_RESOURCE",
-        "SYS_NICE",
-        "IPC_LOCK",
-        "PERFMON"
-    ],
+    "privileged": true,
     "customizations": {
         "vscode": {
             "extensions": [
