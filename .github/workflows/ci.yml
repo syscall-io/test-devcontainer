@@ -23,15 +23,24 @@ env:
 jobs:
   build-image:
     name: Build image
+    outputs:
+      # key에는 변수를 쓸 수 없어 하드코딩됨 식별자 사용
+      metadata-linux-amd64: ${{ steps.collect-output.outputs.metadata-linux-amd64 }}
+      metadata-linux-arm64: ${{ steps.collect-output.outputs.metadata-linux-arm64 }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+        include:
+          # platform_id: For GH actions output discriminator.
+          - platform_id: linux-amd64
+            runner: ubuntu-24.04
+          - platform_id: linux-arm64
+            runner: ubuntu-24.04-arm
+
     env:
       SOURCE_DATE_EPOCH: 0
     permissions:
       packages: write
-      contents: write
 
     steps:
       - name: Checkout
@@ -113,18 +122,11 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           outputs: type=image,push=true,push-by-digest=true,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,force-compression=true
 
-      - name: Export metadata
+      - name: Collect output
+        id: collect-output
         run: |
-          mkdir -p ${{ runner.temp }}/image-metadata
-          echo '${{ steps.build-stage2.outputs.metadata}}' > '${{ runner.temp }}/image-metadata/metadata.json'
+          printf "metadata-%s=%s\n" '${{ matrix.platform_id }}' "$(base64 --wrap=0 <<< '${{ steps.build-stage2.outputs.metadata }}')" >> "$GITHUB_OUTPUT"
 
-      - name: Upload metadata
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: metadata-${{ runner.arch }}
-          path: ${{ runner.temp }}/image-metadata/*
-          if-no-files-found: error
-          retention-days: 1
 
   merge:
     runs-on: ubuntu-latest
@@ -132,16 +134,10 @@ jobs:
       - build-image
     permissions:
       packages: write
-      contents: read
+      id-token: write
+      attestations: write
 
     steps:
-      - name: Download previous metadata
-        id: collect-metadata
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
-        with:
-          pattern: metadata-*
-          path: ${{ runner.temp }}/image-metadata
-
       - name: Setup Docker buildx
         id: setup-buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
@@ -153,12 +149,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+
       - name: Create manifest
+        id: create-manifest
         run: |
-          digests=( $(cd "${{ runner.temp }}/image-metadata" && cat metadata-*/metadata.json | jq -r '.["containerimage.digest"]') )
+          mkdir -p "${{ runner.temp }}/image-metadata"
+          echo '${{ toJSON(needs.build-image.outputs) }}' | jq -r 'to_entries[] | "\(.key)\t\(.value)"' | while IFS=$'\t' read -r key b64data ; do base64 --decode <<< "$b64data" > "${{ runner.temp }}/image-metadata/${key}.json" ; done
+          digests=( $(cd "${{ runner.temp }}/image-metadata" && cat metadata-*.json | jq -r '.["containerimage.digest"]') )
+
+          repo_image='${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}'
+
           docker buildx imagetools create \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:git-${{ github.sha }} \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@%s ' "${digests[@]}") \
+            --tag "$repo_image":latest \
+            --tag "$repo_image":git-${{ github.sha }} \
+            $(printf "$repo_image@%s " "${digests[@]}") \
           ;
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:git-${{ github.sha }}
+          docker buildx imagetools inspect "$repo_image":git-${{ github.sha }}
+
+          digest=$(docker buildx imagetools inspect --format '{{(.Manifest).Digest}}' "$repo_image":git-${{ github.sha }})
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+
+      - name: Attestation
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.create-manifest.outputs.digest }}
+          push-to-registry: true
