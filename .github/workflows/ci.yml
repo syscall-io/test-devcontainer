@@ -113,10 +113,11 @@ jobs:
       - name: "Build image: stage2"
         id: build-stage2
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: image/stage2/
           build-contexts: |
-            stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
             stage1=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage1.outputs.imageid }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
@@ -125,16 +126,34 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
+
+      - name: "Build image: stage3"
+        id: build-stage3
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: image/stage3/
+          build-contexts: |
+            stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
+            stage2=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage2.outputs.imageid }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.master
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }},mode=max
           sbom: true
           provenance: true
           annotations: ${{ steps.docker-meta.outputs.annotations }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
           outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,rewrite-timestamp=true,compression=estargz,store=false
 
       - name: Collect output
         id: collect-output
         run: |
-          printf "metadata-%s=%s\n" '${{ matrix.platform_id }}' "$(base64 --wrap=0 <<< '${{ steps.build-stage2.outputs.metadata }}')" >> "$GITHUB_OUTPUT"
+          printf "metadata-%s=%s\n" '${{ matrix.platform_id }}' "$(base64 --wrap=0 <<< '${{ steps.build-stage3.outputs.metadata }}')" >> "$GITHUB_OUTPUT"
 
   merge:
     runs-on: ubuntu-latest
