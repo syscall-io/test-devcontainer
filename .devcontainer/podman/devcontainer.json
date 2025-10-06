@@ -3,8 +3,6 @@
     "name": "Podman",
     "image": "ghcr.io/hsw0/test-devcontainer:master",
 
-    "remoteUser": "devuser",
-    "overrideCommand": false,
     "runArgs": [
         "--tty",
         "--systemd", "always",
