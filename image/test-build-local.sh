@@ -35,12 +35,14 @@ build_image() {
   (set -x;
   $BUILDX_CMD build \
    --builder "$builder_instance" \
+   --tag "${REGISTRY_HOST}/tmp/${name}:latest" \
    --tag "${REGISTRY_HOST}/tmp/${name}:run-${run_id}" \
-   --output "type=registry,oci-mediatypes=true,compression=estargz" \
+   --output "type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false" \
    --iidfile "$BUILD_DIR"/"$name"/image-id \
    --metadata-file "${BUILD_DIR}"/"$name"/metadata.json \
    --cache-to "type=registry,ref=${REGISTRY_HOST}/tmp/${name}-cache,mode=max" \
    --cache-from "type=registry,ref=${REGISTRY_HOST}/tmp/${name}-cache" \
+   --progress plain \
    "${extra_args[@]}" \
    "${SCRIPT_DIR}/${name}/" \
   ;)
@@ -89,9 +91,14 @@ main () {
   ;
 
   build_image stage2 \
-    --build-context stage0="docker-image://${REGISTRY_HOST}/tmp/stage0:run-${run_id}" \
     --build-context stage1="docker-image://${REGISTRY_HOST}/tmp/stage1:run-${run_id}" \
   ;
+
+  build_image stage3 \
+    --build-context stage0="docker-image://${REGISTRY_HOST}/tmp/stage0:run-${run_id}" \
+    --build-context stage2="docker-image://${REGISTRY_HOST}/tmp/stage2:run-${run_id}" \
+  ;
+
 
   return 0
 }

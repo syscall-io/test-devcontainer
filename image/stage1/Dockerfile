@@ -2,84 +2,75 @@
 
 FROM stage0
 
-ARG SYSTEMD_OFFLINE=1
-
-RUN --mount=type=cache,id=dnf,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=type=cache,target=/var/cache/yum --mount=type=cache,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
+export SYSTEMD_OFFLINE=1
+
 dnf install --setopt=keepcache=1 --assumeyes \
-  sudo polkit \
-  which util-linux moreutils diffutils procps-ng psmisc file less lsof xxd tree \
+  systemd polkit \
+  sudo \
+  util-linux \
+  moreutils \
+  diffutils \
+  procps-ng psmisc lsof \
+  which file less xxd tree \
   ripgrep \
   pv \
   iputils iproute hostname \
   socat nmap-ncat \
   wget rsync openssh-clients ldns-utils \
-  git-core git-lfs \
+  git-core \
   sqlite \
   gnupg2 \
-  zip cpio \
+  zip cpio 7zip \
   tmux \
   man-db \
-  ncurses readline \
   perl-interpreter \
   vim-enhanced \
-;
-
-########################################
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  gcc gcc-c++ clang lld binutils elfutils \
-  make patch autoconf automake \
-  libtool libtool-ltdl pkgconf-pkg-config \
-  llvm clang-tools-extra \
-  strace gdb-gdbserver lldb \
-  flex bison byacc \
-  gettext \
-  rpm-build \
   bash-completion \
+  make \
 ;
 
 ########################################
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  zlib-devel lz4-devel libzstd-devel \
-  gettext-devel ncurses-devel readline-devel \
-  elfutils-libelf-devel libunwind-devel \
-  nss-devel openssl-devel \
-  libcurl-devel \
-  libxml2-devel libxslt-devel \
-  sqlite-devel \
-  systemd-devel libcap-devel \
-  libevent-devel liburing-devel \
-  numactl-devel \
-  libicu-devel \
-  uuid-devel \
-  swig \
+systemctl mask \
+  sys-fs-fuse-connections.mount \
+  sys-kernel-config.mount \
+  sys-kernel-debug.mount \
+  sys-kernel-tracing.mount \
+  systemd-remount-fs.service \
+  systemd-udev-trigger.service \
+  systemd-udevd.service \
+  getty.target \
+  console-getty.service \
+  systemd-random-seed.service \
+  systemd-machine-id-commit.service \
+  systemd-update-utmp.service \
+  systemd-update-utmp-runlevel.service \
+  systemd-update-done.service \
+  systemd-tpm2-setup.service \
+  systemd-tpm2-setup-early.service \
+  modprobe@.service \
 ;
 
-########################################
-
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  xterm \
+systemctl disable \
+  dnf-makecache.timer \
+  fstrim.timer \
+  systemd-network-generator.service \
+  fips-crypto-policy-overlay.service \
+  systemd-hostnamed.socket \
+  systemd-userdbd.socket \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  python3.12 python3.12-{pip,cffi,lxml,cryptography} \
-  python3.12-devel \
+systemctl enable \
+  tmp.mount \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  nodejs22 nodejs22-devel nodejs-npm \
+systemctl unmask \
+  systemd-logind.service \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
-  java-21-openjdk-devel \
-;
-
-########################################
-
-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
 
 ln -s vim /usr/bin/vi
 
@@ -89,6 +80,9 @@ lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}
 date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
 touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
 
-find / -mount -depth -newer /etc/BUILDTIME -ls -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
 RUNEOF
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
