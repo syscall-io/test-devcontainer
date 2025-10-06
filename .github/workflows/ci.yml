@@ -129,7 +129,7 @@ jobs:
           provenance: true
           annotations: ${{ steps.docker-meta.outputs.annotations }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
-          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,rewrite-timestamp=true,compression=estargz,store=false
 
       - name: Collect output
         id: collect-output
