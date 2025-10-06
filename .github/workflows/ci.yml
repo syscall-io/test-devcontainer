@@ -33,8 +33,6 @@ jobs:
           - platform_id: linux-arm64
             runner: ubuntu-24.04-arm
 
-    env:
-      SOURCE_DATE_EPOCH: 0
     permissions:
       packages: write
 
@@ -45,32 +43,21 @@ jobs:
           # Reproduce the exact commit hash value
           fetch-depth: 0
 
+      - name: Collect Git environment
+        id: git-info
+        run: |
+          echo "git_tree_id=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+          echo "git_ref_name_escaped=$(echo '${{ github.ref_name }}' | sed 's/[^A-Za-z0-9._-]/-/g')" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Setup Docker buildx
         id: setup-buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
+          driver-opts: >-
+            image=docker.io/moby/buildkit:v0.25.0@sha256:faffcac91decfb3b981234bf2762d88ed6c90771b689a3d8a5049cd0e874759a
           buildkitd-flags: >-
             --oci-worker-snapshotter=stargz
-
-      - name: "Cache volume: dnf"
-        id: cache-volume-dnf
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: buildkit-cache-dnf
-          key: buildkit-cache-dnf-${{ runner.arch }}
-
-      - name: "Inject Buildkit cache"
-        uses: reproducible-containers/buildkit-cache-dance@5b81f4d29dc8397a7d341dba3aeecc7ec54d6361 # v3.3.0
-        with:
-          builder: ${{ steps.setup-buildx.outputs.name }}
-          save-always: true
-          cache-map: >-
-            {
-              "buildkit-cache-dnf": {
-                "target": "/var/cache/dnf",
-                "id": "dnf"
-              }
-            }
 
       - name: Login to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
@@ -90,41 +77,59 @@ jobs:
       - name: "Build image: stage0"
         id: build-stage0
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: image/stage0/
-          file: image/stage0/Dockerfile
-          cache-from: type=gha,scope=stage0-${{ runner.arch }}
-          cache-to: type=gha,scope=stage0-${{ runner.arch }},mode=max
-          outputs: type=oci,dest=${{ runner.temp }}/stage0-image,tar=false,oci-mediatypes=true,compression=estargz,force-compression=true
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.master
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
 
       - name: "Build image: stage1"
         id: build-stage1
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: image/stage1/
-          file: image/stage1/Dockerfile
           build-contexts: |
-            stage0=oci-layout://${{ runner.temp }}/stage0-image
-          cache-from: type=gha,scope=stage1-${{ runner.arch }}
-          cache-to: type=gha,scope=stage1-${{ runner.arch }},mode=max
-          outputs: type=oci,dest=${{ runner.temp }}/stage1-image,tar=false,oci-mediatypes=true,compression=estargz,force-compression=true
+            stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.master
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
 
       - name: "Build image: stage2"
         id: build-stage2
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: image/stage2/
-          file: image/stage2/Dockerfile
           build-contexts: |
-            stage0=oci-layout://${{ runner.temp }}/stage0-image
-            stage1=oci-layout://${{ runner.temp }}/stage1-image
-          cache-from: type=gha,scope=stage2-${{ runner.arch }}
-          cache-to: type=gha,scope=stage2-${{ runner.arch }},mode=max
+            stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
+            stage1=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage1.outputs.imageid }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.master
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }},mode=max
           sbom: true
           provenance: true
           annotations: ${{ steps.docker-meta.outputs.annotations }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          outputs: type=image,push=true,push-by-digest=true,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,force-compression=true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-build.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_tree_id }}
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
 
       - name: Collect output
         id: collect-output
@@ -184,7 +189,7 @@ jobs:
           docker buildx imagetools create \
             --tag "${repo_image}:${build_id_tag}" \
             $(echo '${{ steps.docker-meta.outputs.tags }}' | sed 's/^/--tag /') \
-            $(printf "$repo_image@%s " "${digests[@]}") \
+            $(printf "${repo_image}/tmp@%s " "${digests[@]}") \
           ;
 
           docker buildx imagetools inspect "${repo_image}:${build_id_tag}"
