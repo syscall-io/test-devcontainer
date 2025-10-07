@@ -10,37 +10,15 @@ set -eux -o pipefail
 export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
-  systemd polkit \
+  systemd \
+  polkit \
   sudo \
-  util-linux \
-  moreutils \
-  diffutils \
-  procps-ng psmisc lsof \
-  which file less xxd tree \
-  ripgrep \
-  pv \
-  iputils iproute hostname \
-  socat nmap-ncat \
-  wget rsync openssh-clients ldns-utils \
-  git-core \
-  sqlite \
-  gnupg2 \
-  zip cpio 7zip \
-  tmux \
-  man-db \
-  perl-interpreter \
-  vim-enhanced \
-  bash-completion \
-  make \
+  openssh-server \
 ;
 
 ########################################
 
 echo -n > /etc/machine-id
-
-ln -s vim /usr/bin/vi
-
-########################################
 
 systemctl mask \
   sys-fs-fuse-connections.mount \
@@ -84,6 +62,65 @@ systemctl set-default multi-user.target
 
 mkdir -p /var/lib/systemd/linger
 
+rm -f /etc/sysconfig/sshd-permitrootlogin /etc/ssh/sshd_config.d/25-permitrootlogin.conf
+cat <<'EOF' > /etc/ssh/sshd_config.d/0-devcontainer-custom.conf
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+EOF
+
+lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
+touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+########################################
+
+RUNEOF
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
+
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
+  7zip \
+  bash-completion \
+  cpio \
+  diffutils \
+  file \
+  git-core \
+  gnupg2 \
+  hostname \
+  iproute \
+  iputils \
+  ldns-utils \
+  less \
+  lsof \
+  make \
+  man-db \
+  moreutils \
+  nmap-ncat \
+  openssh-clients \
+  perl-interpreter \
+  procps-ng \
+  psmisc \
+  pv \
+  ripgrep \
+  rsync \
+  socat \
+  sqlite \
+  tmux \
+  tree \
+  util-linux \
+  vim-enhanced \
+  wget \
+  which \
+  xxd \
+  zip \
+;
+
 ########################################
 
 lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
@@ -101,6 +138,8 @@ ARG DEV_USER_NAME=user
 
 RUN --network=none <<RUNEOF
 set -eux -o pipefail
+
+ln -s vim /usr/bin/vi
 
 cat <<'EOF' >> /etc/skel/.bashrc
 
@@ -123,6 +162,10 @@ groupadd --gid "$DEV_USER_GID" "$DEV_USER_NAME"
 useradd --no-log-init --uid "$DEV_USER_UID" --gid "$DEV_USER_GID" --create-home --shell /bin/bash "$DEV_USER_NAME"
 usermod --append --groups wheel "$DEV_USER_NAME"
 usermod --append --groups systemd-journal "$DEV_USER_NAME"
+
+install -d -o "$DEV_USER_UID" -g "$DEV_USER_GID" -m 700 "/home/${DEV_USER_NAME}"/.ssh
+install -o "$DEV_USER_UID" -g "$DEV_USER_GID" -m 600 /dev/null "/home/${DEV_USER_NAME}"/authorized_keys
+install -o "$DEV_USER_UID" -g "$DEV_USER_GID" -m 600 /dev/null "/home/${DEV_USER_NAME}"/known_hosts
 
 echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
 install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
