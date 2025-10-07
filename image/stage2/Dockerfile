@@ -4,15 +4,14 @@ FROM stage1 AS root
 
 FROM root AS build
 
-ARG SYSTEMD_OFFLINE=1
-
-RUN --mount=type=cache,target=/var/cache/yum --mount=type=cache,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
+export SYSTEMD_OFFLINE=1
 
 ########################################
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   gcc gcc-c++ clang lld binutils elfutils \
   patch autoconf automake \
   libtool libtool-ltdl pkgconf-pkg-config \
@@ -26,7 +25,7 @@ dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
 
 ########################################
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   zlib-devel lz4-devel libzstd-devel \
   gettext-devel ncurses-devel readline-devel \
   elfutils-libelf-devel libunwind-devel \
@@ -44,20 +43,20 @@ dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
 
 ########################################
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   xterm \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   python3.12 python3.12-{pip,cffi,lxml,cryptography} \
   python3.12-devel \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   nodejs22 nodejs22-devel nodejs-npm \
 ;
 
-dnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   java-21-openjdk-devel \
 ;
 
