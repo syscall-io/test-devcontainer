@@ -86,3 +86,43 @@ RUNEOF
 
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
+
+ARG DEV_USER_UID=1000
+ARG DEV_USER_GID=1000
+ARG DEV_USER_NAME=user
+
+RUN --network=none <<RUNEOF
+set -eux -o pipefail
+
+cat <<'EOF' >> /etc/skel/.bashrc
+
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+alias grep='grep --color=auto'
+alias ls='ls --color=auto'
+
+EOF
+
+cat <<'EOF' >> /etc/skel/.bash_profile
+export EDITOR=vim
+export PAGER=less
+export LESS='--quit-if-one-screen --squeeze-blank-lines --RAW-CONTROL-CHARS'
+EOF
+
+groupadd --gid "$DEV_USER_GID" "$DEV_USER_NAME"
+useradd --no-log-init --uid "$DEV_USER_UID" --gid "$DEV_USER_GID" --create-home --shell /bin/bash "$DEV_USER_NAME"
+usermod --append --groups wheel "$DEV_USER_NAME"
+usermod --append --groups systemd-journal "$DEV_USER_NAME"
+
+echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
+install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
+
+RUNEOF
+
+LABEL devcontainer.metadata='[{ \
+  "overrideCommand": false, \
+  "capAdd": [ "SYS_PTRACE", "SYS_ADMIN", "MKNOD" ], \
+  "remoteUser": "user" \
+}]'
