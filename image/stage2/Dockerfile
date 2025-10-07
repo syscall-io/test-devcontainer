@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM stage1
+FROM stage1 AS root
+
+FROM root AS build
 
 ARG SYSTEMD_OFFLINE=1
 
@@ -72,3 +74,15 @@ touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
 RUNEOF
+
+################################################################################
+
+FROM root
+
+COPY --from=build \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
+
+COPY --from=build / /

@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM stage0
+FROM stage0 AS root
+
+FROM root AS build
 
 RUN --mount=type=cache,target=/var/cache/yum --mount=type=cache,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
@@ -31,6 +33,10 @@ dnf install --setopt=keepcache=1 --assumeyes \
   bash-completion \
   make \
 ;
+
+########################################
+
+ln -s vim /usr/bin/vi
 
 ########################################
 
@@ -71,8 +77,8 @@ systemctl unmask \
   systemd-logind.service \
 ;
 
+systemctl set-default multi-user.target
 
-ln -s vim /usr/bin/vi
 
 ########################################
 
@@ -84,8 +90,6 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 
 RUNEOF
 
-STOPSIGNAL SIGRTMIN+3
-CMD ["/sbin/init"]
 
 ARG DEV_USER_UID=1000
 ARG DEV_USER_GID=1000
@@ -119,7 +123,25 @@ usermod --append --groups systemd-journal "$DEV_USER_NAME"
 echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
 install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
 
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
 RUNEOF
+
+
+################################################################################
+
+FROM root
+
+COPY --from=build \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
+
+COPY --from=build / /
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
 
 LABEL devcontainer.metadata='[{ \
   "overrideCommand": false, \
