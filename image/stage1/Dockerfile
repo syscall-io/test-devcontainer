@@ -36,6 +36,8 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
 
 ########################################
 
+echo -n > /etc/machine-id
+
 ln -s vim /usr/bin/vi
 
 ########################################
