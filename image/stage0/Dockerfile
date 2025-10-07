@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 # Syntax: https://github.com/moby/buildkit/blob/v0.25/frontend/dockerfile/docs/reference.md
 
+FROM docker.io/almalinux/10-micro:10.0-20250909@sha256:6e400562cf42a7d27a29e3e4eb34a824045127206ef3d9ca0141def81935ce11 AS root
+
 # https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.minimal
-FROM docker.io/almalinux/10-minimal:10.0-20250909@sha256:f430e3c8e1078c519de768fa41bbccfe2b673bacc2f10d7193b11c71267bcecb AS bootstrap
+FROM docker.io/almalinux/10-minimal:10.0-20250909@sha256:f430e3c8e1078c519de768fa41bbccfe2b673bacc2f10d7193b11c71267bcecb AS build
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 
@@ -81,30 +83,15 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 RUNEOF
 
 
-RUN --network=none --mount=type=tmpfs,target=/tmp <<RUNEOF
-set -eux -o pipefail
+FROM root
 
-mkdir /.non_deterministic
+COPY --from=build \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
 
-non_deterministic_files=(
-  /usr/lib/sysimage/rpm/rpmdb.*
-  /var/lib/dnf/history.*
-  /var/cache/ldconfig/aux-cache
-)
-
-cp -va --parents "${non_deterministic_files[@]}" /.non_deterministic/
-rm -f "${non_deterministic_files[@]}"
-
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
-
-RUNEOF
-
-
-FROM scratch AS stage0
-
-COPY --link --from=bootstrap --exclude=.non_deterministic / /
-
-COPY --link --from=bootstrap /.non_deterministic/ /
+COPY --from=build / /
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 CMD ["/bin/bash"]

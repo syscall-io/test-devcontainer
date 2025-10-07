@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM stage1
+FROM stage1 AS root
+
+FROM root AS build
 
 ARG SYSTEMD_OFFLINE=1
 
@@ -73,42 +75,14 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 
 RUNEOF
 
-ARG DEV_USER_UID=1000
-ARG DEV_USER_GID=1000
-ARG DEV_USER_NAME=user
+################################################################################
 
-RUN --network=none <<RUNEOF
-set -eux -o pipefail
+FROM root
 
-cat <<'EOF' >> /etc/skel/.bashrc
+COPY --from=build \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
 
-alias rm='rm -i'
-alias cp='cp -i'
-alias mv='mv -i'
-
-alias grep='grep --color=auto'
-alias ls='ls --color=auto'
-
-EOF
-
-cat <<'EOF' >> /etc/skel/.bash_profile
-export EDITOR=vim
-export PAGER=less
-export LESS='--quit-if-one-screen --squeeze-blank-lines --RAW-CONTROL-CHARS'
-EOF
-
-groupadd --gid "$DEV_USER_GID" "$DEV_USER_NAME"
-useradd --no-log-init --uid "$DEV_USER_UID" --gid "$DEV_USER_GID" --create-home --shell /bin/bash "$DEV_USER_NAME"
-usermod --append --groups wheel "$DEV_USER_NAME"
-usermod --append --groups systemd-journal "$DEV_USER_NAME"
-
-echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
-install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
-
-RUNEOF
-
-LABEL devcontainer.metadata='[{ \
-  "overrideCommand": false, \
-  "capAdd": [ "SYS_PTRACE", "SYS_ADMIN", "MKNOD" ], \
-  "remoteUser": "user" \
-}]'
+COPY --from=build / /
