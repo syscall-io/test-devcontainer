@@ -1,0 +1,72 @@
+name: Snapshot repository
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_NAME: almalinux-repo-snapshot
+
+jobs:
+  build:
+    name: Build and push snapshot image
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      tag: ${{ steps.tag.outputs.tag }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Login to Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate snapshot tag
+        id: tag
+        run: |
+          readonly now=$(date +%s)
+          echo "SOURCE_DATE_EPOCH=${now}" >> "$GITHUB_ENV"
+          echo "tag=$(TZ=UTC date --date="@${now}" '+%Y%m%d_%H%M')" >> "$GITHUB_OUTPUT"
+          echo "opencontainers_created=$(TZ=UTC date --date="@${now}" --iso-8601=seconds)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: image/repo-snapshot/
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: true
+          annotations: |
+            org.opencontainers.image.title=AlmaLinux repository snapshot
+            org.opencontainers.image.created=${{ steps.tag.outputs.opencontainers_created }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest
+          outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,store=false
+
+      - name: Expose image digest
+        run: |
+          echo "Digest: ${{ steps.build.outputs.digest }}"
+          echo "digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
