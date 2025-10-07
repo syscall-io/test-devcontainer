@@ -4,12 +4,12 @@ FROM stage0 AS root
 
 FROM root AS build
 
-RUN --mount=type=cache,target=/var/cache/yum --mount=type=cache,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
 export SYSTEMD_OFFLINE=1
 
-dnf install --setopt=keepcache=1 --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
   systemd polkit \
   sudo \
   util-linux \
@@ -79,6 +79,7 @@ systemctl unmask \
 
 systemctl set-default multi-user.target
 
+mkdir -p /var/lib/systemd/linger
 
 ########################################
 
@@ -122,6 +123,9 @@ usermod --append --groups systemd-journal "$DEV_USER_NAME"
 
 echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
 install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
+
+#loginctl enable-linger "$DEV_USER_NAME"  # is not running
+touch /var/lib/systemd/linger/"$DEV_USER_NAME"
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 

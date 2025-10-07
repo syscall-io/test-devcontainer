@@ -42,6 +42,7 @@ build_image() {
    --metadata-file "${BUILD_DIR}"/"$name"/metadata.json \
    --cache-to "type=registry,ref=${REGISTRY_HOST}/tmp/${name}-cache,mode=max" \
    --cache-from "type=registry,ref=${REGISTRY_HOST}/tmp/${name}-cache" \
+   --build-context repo-snapshot="docker-image://ghcr.io/hsw0/almalinux-repo-snapshot:latest" \
    --progress plain \
    "${extra_args[@]}" \
    "${SCRIPT_DIR}/${name}/" \

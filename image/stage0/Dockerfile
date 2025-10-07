@@ -8,7 +8,7 @@ FROM docker.io/almalinux/10-minimal:10.0-20250909@sha256:f430e3c8e1078c519de768f
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 
-RUN --mount=type=cache,target=/var/cache/yum --mount=type=cache,target=/var/cache/dnf --mount=type=cache,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
 printf "LANG=${LANG}\nLC_CTYPE=${LC_CTYPE}\nLC_COLLATE=${LC_COLLATE}\n" > /etc/locale.conf
@@ -21,11 +21,10 @@ microdnf remove --assumeyes \
   libusbx \
 ;
 
-microdnf makecache
+# Note: microdnf don't have --setopt=metadata_expire. instead it has --refresh option.
+microdnf upgrade --setopt=keepcache=1 --nodocs --assumeyes
 
-microdnf upgrade --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes
-
-microdnf install --setopt=keepcache=1 --setopt=tsflags=nodocs --assumeyes \
+microdnf install --setopt=keepcache=1 --assumeyes \
  dnf dnf-plugins-core epel-release \
 ;
 
@@ -34,11 +33,8 @@ dnf remove --setopt=keepcache=1 --assumeyes \
 ;
 
 rpmkeys --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
-crb enable
 
-dnf makecache --repo=crb --repo=epel
-
-dnf install --setopt=keepcache=1 --allowerasing --assumeyes \
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --allowerasing --assumeyes \
   glibc-langpack-en \
   pam \
   findutils grep gawk sed which \
@@ -52,7 +48,7 @@ dnf install --setopt=keepcache=1 --allowerasing --assumeyes \
 
 pushd /tmp
 
-dnf download util-linux
+dnf download --setopt=keepcache=1 --setopt=metadata_expire=-1 util-linux
 rpm2archive --nocompression --format=pax util-linux-*.rpm > util-linux.tar
 tar xvf util-linux.tar -C / ./usr/sbin/runuser
 
