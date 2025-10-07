@@ -79,6 +79,7 @@ systemctl unmask \
   systemd-logind.service \
 ;
 
+ln -snf multi-user.target /usr/lib/systemd/system/default.target
 systemctl set-default multi-user.target
 
 mkdir -p /var/lib/systemd/linger
