@@ -6,7 +6,8 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-image.yml'
-      - 'image/stage*/**'
+      - 'image/**'
+      - '!image/repo-snapshot/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -86,6 +87,7 @@ jobs:
           context: image/stage0/
           build-contexts: |
             repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            container-script=image/container-script
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ hashFiles('image/stage0/**') }}
@@ -105,6 +107,7 @@ jobs:
           context: image/stage1/
           build-contexts: |
             repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            container-script=image/container-script
             stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage1-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
@@ -125,6 +128,7 @@ jobs:
           context: image/stage2/
           build-contexts: |
             repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            container-script=image/container-script
             stage1=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage1.outputs.imageid }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage2-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
@@ -143,6 +147,7 @@ jobs:
           context: image/stage3/
           build-contexts: |
             repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            container-script=image/container-script
             stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
             stage2=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage2.outputs.imageid }}
           cache-from: |

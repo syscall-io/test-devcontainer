@@ -4,21 +4,20 @@ FROM stage0 AS root
 
 FROM root AS s0-install-systemd
 
-RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+<<RUNEOF
 set -eux -o pipefail
 
-export SYSTEMD_OFFLINE=1
-
-dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
+/tmp/container-script/dnf-wrapper.sh install \
   systemd \
   polkit \
-  sudo \
   openssh-server \
 ;
 
 ########################################
-
-rm /etc/adjtime.rpmnew
 
 echo -n > /etc/machine-id
 
@@ -43,13 +42,9 @@ systemctl disable \
   sshd.service \
 ;
 
-rm -f /etc/sysconfig/sshd-permitrootlogin /etc/ssh/sshd_config.d/25-permitrootlogin.conf
+rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 ########################################
-
-lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
-date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
-touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
@@ -57,58 +52,75 @@ RUNEOF
 
 FROM s0-install-systemd AS s1-install-packages
 
-RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+<<RUNEOF
 set -eux -o pipefail
 
-export SYSTEMD_OFFLINE=1
-
-dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
+/tmp/container-script/dnf-wrapper.sh install \
   7zip \
   acl \
   bash-completion \
   cpio \
   diffutils \
   file \
+  gawk \
   git-core \
   gnupg2 \
+  grep \
+  gzip \
   hostname \
   iproute \
   iputils \
+  jq \
   ldns-utils \
   less \
   lsof \
+  lz4 \
   make \
   man-db \
   moreutils \
   nmap-ncat \
   openssh-clients \
+  openssl \
   patch \
   perl-interpreter \
   procps-ng \
   psmisc \
   pv \
   ripgrep \
+  rootfiles \
   rsync \
+  sed  \
+  skopeo \
   socat \
   sqlite \
   strace \
+  sudo \
+  tar \
+  tcpdump \
   tmux \
   tree \
+  unzip \
   util-linux \
   vim-minimal \
   wget \
   which \
   xxd \
+  xz \
   zip \
+  zstd \
 ;
 
 ########################################
 
-lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
-date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
-touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
+systemd-tmpfiles --root=/rootfs --create /usr/lib/tmpfiles.d/rootfiles.conf
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -137,7 +149,10 @@ COPY --from=s1-install-packages / /
 
 
 # NOTE: empty "from=" is default context
-RUN --network=none --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/tmp --mount=from=,target=/tmp/src <<RUNEOF
+RUN --mount=from=,target=/tmp/src \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --network=none \
+<<RUNEOF
 set -eux -o pipefail
 
 cp -va /tmp/src/rootfs/* /
@@ -154,6 +169,13 @@ systemctl mask \
   systemd-tpm2-setup-early.service \
   getty.target \
   console-getty.service \
+;
+
+# in case of..
+systemctl mask \
+  systemd-resolved.service \
+  systemd-networkd.service \
+  NetworkManager.service \
 ;
 
 systemctl disable \
@@ -174,15 +196,11 @@ EOF
 
 ln -s ../../bin/vi /usr/local/bin/vim
 
-
 cat <<'EOF' >> /etc/skel/.bashrc
 
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
-
-alias grep='grep --color=auto'
-alias ls='ls --color=auto'
 
 EOF
 
