@@ -13,10 +13,10 @@ export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   gcc gcc-c++ clang lld binutils elfutils \
-  patch autoconf automake \
+  autoconf automake \
   libtool libtool-ltdl pkgconf-pkg-config \
   llvm clang-tools-extra \
-  strace gdb-gdbserver lldb \
+  gdb-gdbserver lldb \
   flex bison byacc \
   gettext \
   readline \

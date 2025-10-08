@@ -82,6 +82,7 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
   moreutils \
   nmap-ncat \
   openssh-clients \
+  patch \
   perl-interpreter \
   procps-ng \
   psmisc \
@@ -90,6 +91,7 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
   rsync \
   socat \
   sqlite \
+  strace \
   tmux \
   tree \
   util-linux \
