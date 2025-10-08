@@ -2,14 +2,42 @@
 
 FROM stage1 AS root
 
-FROM root AS build
+FROM root AS s0
 
 RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
 export SYSTEMD_OFFLINE=1
 
-########################################
+dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
+  default-fonts-core \
+  default-fonts-cjk \
+  libXcomposite \
+  libXi \
+  libXtst \
+  libfontenc \
+  mkfontscale \
+  ttmkfdir \
+  wayland-utils \
+  xorg-x11-fonts-Type1 \
+  xorg-x11-xauth \
+  xterm \
+;
+
+lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
+touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+RUNEOF
+
+FROM s0 AS s1
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   gcc gcc-c++ clang lld binutils elfutils \
@@ -23,7 +51,14 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=no
   rpm-build \
 ;
 
-########################################
+RUNEOF
+
+FROM s1 AS s2
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   zlib-devel lz4-devel libzstd-devel \
@@ -41,30 +76,65 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=no
   swig \
 ;
 
-########################################
+lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
+touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
 
-dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
-  xterm \
-;
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+RUNEOF
+
+FROM s2 AS s3
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   python3.12 python3.12-{pip,cffi,lxml,cryptography} \
   python3.12-devel \
 ;
 
+alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
+
+lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
+touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+RUNEOF
+
+FROM s3 AS s4
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
+
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   nodejs22 nodejs22-devel nodejs-npm \
 ;
 
+lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
+touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+RUNEOF
+
+FROM s4 AS s5
+
+RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+set -eux -o pipefail
+
+export SYSTEMD_OFFLINE=1
+
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --setopt=tsflags=nodocs --assumeyes \
   java-21-openjdk-devel \
 ;
-
-########################################
-
-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
-
-########################################
 
 lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
 date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
@@ -78,10 +148,46 @@ RUNEOF
 
 FROM root
 
-COPY --from=build \
+COPY --from=s0 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
-COPY --from=build / /
+COPY --from=s1 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s2 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s3 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s4 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s5 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s5 / /
