@@ -1,93 +1,211 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 # Syntax: https://github.com/moby/buildkit/blob/v0.25/frontend/dockerfile/docs/reference.md
 
-FROM docker.io/almalinux/10-micro:10.0-20250909@sha256:6e400562cf42a7d27a29e3e4eb34a824045127206ef3d9ca0141def81935ce11 AS root
-
-# https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.minimal
-FROM docker.io/almalinux/10-minimal:10.0-20250909@sha256:f430e3c8e1078c519de768fa41bbccfe2b673bacc2f10d7193b11c71267bcecb AS build
+# https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.toolbox
+FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS base
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
+ENV SYSTEMD_OFFLINE=1
 
-RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
+FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS s0
+
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+<<RUNEOF
 set -eux -o pipefail
 
-printf "LANG=${LANG}\nLC_CTYPE=${LC_CTYPE}\nLC_COLLATE=${LC_COLLATE}\n" > /etc/locale.conf
+mkdir /rootfs
 
-printf '\ninstall_weak_deps=0\n' >> /etc/dnf/dnf.conf
-
-export SYSTEMD_OFFLINE=1
-
-microdnf remove --assumeyes \
-  libusbx \
+/tmp/container-script/dnf-wrapper.sh install \
+  --installroot=/rootfs \
+  --releasever 10 \
+  --nodocs \
+  \
+  almalinux-release \
+  filesystem \
 ;
 
-# Note: microdnf don't have --setopt=metadata_expire. instead it has --refresh option.
-microdnf upgrade --setopt=keepcache=1 --nodocs --assumeyes
-
-microdnf install --setopt=keepcache=1 --assumeyes \
- dnf dnf-plugins-core epel-release \
-;
-
-dnf remove --setopt=keepcache=1 --assumeyes \
-  microdnf \
-;
-
-rpmkeys --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
-
-dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --allowerasing --assumeyes \
-  glibc-langpack-en \
-  pam \
-  findutils grep gawk sed which \
-  curl openssl \
+/tmp/container-script/dnf-wrapper.sh install \
+  --installroot=/rootfs \
+  --nodocs \
+  \
+  glibc \
+  glibc-minimal-langpack glibc-langpack-en \
+  libgcc \
+  libstdc++ \
+  tzdata \
   ca-certificates \
-  tar unzip gzip bzip2 zstd lz4 xz \
-  jq \
+  crypto-policies \
+  libevent \
+  systemd-libs \
+  dbus-libs \
+  openssl-libs \
+  libcurl \
+  glib2 \
+  libuuid \
+  libacl \
+  libattr \
+  pcre2 \
+  ncurses-libs \
 ;
 
-########################################
+rpm --root=/rootfs --erase --verbose --nodeps bash coreutils coreutils-common grep sed findutils alternatives shadow-utils gawk openldap
 
-pushd /tmp
+/tmp/container-script/dnf-wrapper.sh autoremove \
+  --installroot=/rootfs \
+  "${DNF_CACHE_REUSE_ARGS[@]}" \
+  --assumeyes \
+;
 
-dnf download --setopt=keepcache=1 --setopt=metadata_expire=-1 util-linux
-rpm2archive --nocompression --format=pax util-linux-*.rpm > util-linux.tar
-tar xvf util-linux.tar -C / ./usr/sbin/runuser
+find /rootfs/usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
 
-popd
+rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos /rootfs/var/lib/dnf/history*
+rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
+rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
-cat <<EOF > /etc/pam.d/runuser
+cp /var/cache/dnf/.reposnapshot.BUILDTIME /rootfs/etc/BUILDTIME
+touch --reference=/var/cache/dnf/.reposnapshot.BUILDTIME --no-create --no-dereference /rootfs/etc/BUILDTIME
+find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
+
+RUNEOF
+
+FROM s0 AS s1
+
+ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
+ENV SYSTEMD_OFFLINE=1
+
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+<<RUNEOF
+set -eux -o pipefail
+
+# NOTE: rpm is signed.
+curl -fSL -o /tmp/epel-release.noarch.rpm https://repo.almalinux.org/almalinux/10/extras/x86_64/os/Packages/epel-release-10-6.el10.noarch.rpm
+
+rpm --root=/rootfs --checksig /tmp/epel-release.noarch.rpm
+rpm --root=/rootfs --install --verbose --nodeps /tmp/epel-release.noarch.rpm
+
+rpmkeys --root=/rootfs --import /rootfs/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
+
+/tmp/container-script/dnf-wrapper.sh install \
+  --installroot=/rootfs \
+  \
+  bash \
+  bzip2 \
+  coreutils-full \
+  crypto-policies-scripts \
+  curl \
+  dnf dnf-plugins-core \
+  findutils \
+  gawk \
+  grep \
+  gzip \
+  jq \
+  lz4 \
+  openldap \
+  openssl \
+  sed  \
+  tar \
+  unzip \
+  xxd \
+  xz \
+  zstd \
+;
+
+rpm --root=/rootfs --erase --verbose --nodeps shadow-utils
+
+/tmp/container-script/dnf-wrapper.sh check dependencies
+
+find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
+
+RUNEOF
+
+# minimal /usr/bin/runuser support
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+    --network=none \
+<<RUNEOF
+set -eux -o pipefail
+
+cp -va /usr/sbin/runuser /rootfs/usr/sbin/runuser
+cp -va /usr/lib64/security/pam_{rootok,permit}.so /rootfs/usr/lib64/security/
+
+cat <<EOF > /rootfs/etc/pam.d/runuser
 #%PAM-1.0
 auth            sufficient      pam_rootok.so
 session         sufficient      pam_permit.so
 EOF
 
-########################################
+RUNEOF
 
-rm -f /usr/share/cracklib/*.{hwm,pwd,pwi}
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+    --network=none \
+<<RUNEOF
+set -eux -o pipefail
 
-find /usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
+install -d -m 755 /rootfs/run/lock /rootfs/var/lib/systemd/coredump
+install -d -m 700 /rootfs/var/cache/private /rootfs/var/lib/private
 
-# buildx --output's rewrite-timestamp=true is too slow...
-lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
+install -m 644 /dev/null /rootfs/etc/machine-id
+install -m 644 /dev/null /rootfs/etc/resolv.conf
+install -m 644 /dev/null /rootfs/etc/hostname
+install -m 600 /dev/null /rootfs/etc/.pwd.lock
 
-if [ ! -e /etc/BUILDTIME ] || [ "$(stat -c %Y /etc/BUILDTIME)" -lt "${lastest_rpm_build_time}" ]; then
-  date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
-  touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
-fi
+echo '%_install_langs C.utf8' > /rootfs/etc/rpm/macros.image-language-conf
+echo 'container' > /rootfs/etc/dnf/vars/infra
+printf '\ninstall_weak_deps=0\n' >> /rootfs/etc/dnf/dnf.conf
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+printf '0.0 0 0.0\n0\nUTC\n' > /rootfs/etc/adjtime
+ln -s ../usr/share/zoneinfo/UTC /rootfs/etc/localtime
+
+printf "LANG=${LANG}\nLC_CTYPE=${LC_CTYPE}\nLC_COLLATE=${LC_COLLATE}\n" > /etc/locale.conf
+echo 'KEYMAP="us"' > /rootfs/etc/vconsole.conf
+echo 'FONT="eurlatgr"' >> /rootfs/etc/vconsole.conf
+
+groupadd --root '/rootfs/' --system --password '!*' --gid 995 systemd-oom
+useradd --root '/rootfs/' --no-log-init --system --comment 'systemd Userspace OOM Killer' --gid 995 --uid 995 --shell '/usr/sbin/nologin' --create-home --home-dir '/' systemd-oom
+
+groupadd --root '/rootfs/' --system --password '!*' --gid 996 sgx
+
+find /rootfs/usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
+
+rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos /rootfs/var/lib/dnf/history*
+
+rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
+rm -rf /rootfs/usr/share/doc/*
+rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
+
+rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
+
+find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
+FROM scratch
 
-FROM root
+COPY --from=s0 \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=etc/ld.so.cache \
+  --exclude=var/cache/ldconfig/aux-cache \
+  /rootfs/ /
 
-COPY --from=build \
+COPY --from=s1 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  / /
+  /rootfs/ /
 
-COPY --from=build / /
+COPY --from=s1 /rootfs/ /
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 CMD ["/bin/bash"]

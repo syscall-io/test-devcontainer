@@ -5,6 +5,7 @@ RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
 uv_version='0.8.22'
+uv_release_ts='2025-09-23T20:35:51Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
@@ -29,6 +30,7 @@ cd "$tmpdir"
 
 tar xvf "$uv_archive" --strip-components=1
 install -o root -g root -m 755 uv uvx /usr/local/bin/
+touch --date="${uv_release_ts}" /usr/local/bin/{uv,uvx}
 
 RUNEOF
 
@@ -37,6 +39,7 @@ RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
 sccache_version='0.10.0'
+sccache_release_ts='2025-02-24T18:29:05Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
@@ -61,6 +64,8 @@ cd "$tmpdir"
 tar xvf "$sccache_archive" --strip-components=1
 install -o root -g root -m 755 sccache /usr/local/bin/
 
+touch --date="${sccache_release_ts}" /usr/local/bin/sccache
+
 RUNEOF
 
 
@@ -69,6 +74,7 @@ RUN --mount=type=cache,id=download-cmake,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
 cmake_version='4.1.1'
+cmake_release_ts='2025-08-27T17:46:25Z'
 cmake_version_major='4.1'
 cmake_prefix="/usr/local/cmake-${cmake_version_major}"
 
@@ -97,6 +103,8 @@ rm -rf "$cmake_prefix"/share/{applications,icons,emacs}
 rm -rf "$cmake_prefix"/doc
 rm -rf "$cmake_prefix"/bin/{ccmake,cmake-gui}
 
+find "$cmake_prefix" -mount -depth -exec touch --date="${cmake_release_ts}" --no-create --no-dereference {} \;
+
 RUNEOF
 
 
@@ -110,6 +118,7 @@ RUN --mount=type=cache,id=download-rustup,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
 rustup_version='1.28.2'
+rustup_release_ts='2025-05-05T16:01:20Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
@@ -133,7 +142,10 @@ cd /tmp/
 install "$rustup_archive" rustup-init
 ./rustup-init -y --verbose --no-modify-path --profile minimal --default-host "$rust_arch" --default-toolchain none
 
-rm -rf -- /usr/local/rustup/toolchains/*/share/doc
+rm -rf -- "$RUSTUP_HOME"/toolchains/*/share/doc
+
+find "$RUSTUP_HOME" "$CARGO_HOME" -mount -depth -exec touch --date="${rustup_release_ts}" --no-create --no-dereference {} \;
+
 
 RUNEOF
 
@@ -159,6 +171,8 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 RUN --mount=type=tmpfs,target=/tmp --mount=type=cache,target=/var/cache/npm --mount=type=cache,target=/var/cache/pip <<RUNEOF
 set -eux -o pipefail
+
+export SOURCE_DATE_EPOCH=0
 
 npm install --cache /var/cache/npm --global 'corepack@0.34.0' && rm -rf /root/.npm
 python3 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
