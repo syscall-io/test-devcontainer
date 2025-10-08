@@ -91,6 +91,7 @@ export SYSTEMD_OFFLINE=1
 
 dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
   7zip \
+  acl \
   bash-completion \
   cpio \
   diffutils \
@@ -136,6 +137,7 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 
 RUNEOF
 
+ADD --chown=0:0 rootfs /
 
 ARG DEV_USER_UID=1000
 ARG DEV_USER_GID=1000
@@ -144,7 +146,7 @@ ARG DEV_USER_NAME=user
 RUN --network=none <<RUNEOF
 set -eux -o pipefail
 
-ln -s vi /usr/bin/vim
+ln -s ../../bin/vi /usr/local/bin/vim
 
 cat <<'EOF' >> /etc/skel/.bashrc
 
@@ -177,6 +179,8 @@ install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
 
 #loginctl enable-linger "$DEV_USER_NAME"  # is not running
 touch /var/lib/systemd/linger/"$DEV_USER_NAME"
+
+runuser -u "$DEV_USER_NAME" -- systemd-tmpfiles --user  --create --remove --dry-run
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
