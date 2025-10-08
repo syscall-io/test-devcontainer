@@ -2,7 +2,7 @@
 
 FROM stage0 AS root
 
-FROM root AS build
+FROM root AS s0-install-systemd
 
 RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
@@ -18,61 +18,34 @@ dnf install --setopt=keepcache=1 --setopt=metadata_expire=-1 --assumeyes \
 
 ########################################
 
+rm /etc/adjtime.rpmnew
+
 echo -n > /etc/machine-id
 
+ln -snf multi-user.target /usr/lib/systemd/system/default.target
+
 systemctl mask \
-  sys-fs-fuse-connections.mount \
+  modprobe@.service \
+  dev-hugepages.mount \
   sys-kernel-config.mount \
-  sys-kernel-debug.mount \
-  sys-kernel-tracing.mount \
+  sys-fs-fuse-connections.mount \
   systemd-remount-fs.service \
   systemd-udev-trigger.service \
   systemd-udevd.service \
-  getty.target \
-  console-getty.service \
   systemd-random-seed.service \
   systemd-machine-id-commit.service \
-  systemd-update-utmp.service \
-  systemd-update-utmp-runlevel.service \
-  systemd-update-done.service \
-  systemd-tpm2-setup.service \
-  systemd-tpm2-setup-early.service \
-  modprobe@.service \
 ;
 
 systemctl disable \
   dnf-makecache.timer \
   fstrim.timer \
   systemd-network-generator.service \
-  fips-crypto-policy-overlay.service \
-  systemd-hostnamed.socket \
-  systemd-userdbd.socket \
+  sshd.service \
 ;
-
-systemctl enable \
-  tmp.mount \
-;
-
-systemctl unmask \
-  systemd-logind.service \
-;
-
-ln -snf multi-user.target /usr/lib/systemd/system/default.target
-systemctl set-default multi-user.target
-
-mkdir -p /var/lib/systemd/linger
 
 rm -f /etc/sysconfig/sshd-permitrootlogin /etc/ssh/sshd_config.d/25-permitrootlogin.conf
-cat <<'EOF' > /etc/ssh/sshd_config.d/0-devcontainer-custom.conf
-PasswordAuthentication no
-PermitEmptyPasswords no
-KbdInteractiveAuthentication no
-EOF
 
-systemctl disable sshd.service
-systemctl enable sshd.socket
-
-rm /etc/adjtime.rpmnew
+########################################
 
 lastest_rpm_build_time=$(rpm -qa --queryformat '%{BUILDTIME}\t%{NAME}-%{VERSION}-%{RELEASE}\n' | sort -n | tail -1 | awk '{print $1}')
 date --date=@${lastest_rpm_build_time} '+%Y%m%d_%H%M' > /etc/BUILDTIME
@@ -80,9 +53,9 @@ touch -d "@${lastest_rpm_build_time}" /etc/BUILDTIME
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
-########################################
-
 RUNEOF
+
+FROM s0-install-systemd AS s1-install-packages
 
 RUN --mount=type=cache,from=repo-snapshot,source=yum,target=/var/cache/yum --mount=type=cache,from=repo-snapshot,source=dnf,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
@@ -137,16 +110,66 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 
 RUNEOF
 
-ADD --chown=0:0 rootfs /
+
+################################################################################
+
+FROM root
 
 ARG DEV_USER_UID=1000
 ARG DEV_USER_GID=1000
 ARG DEV_USER_NAME=user
 
+COPY --from=s0-install-systemd \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
+
+COPY --from=s1-install-packages \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  / /
+
+COPY --from=s1-install-packages / /
+
+ADD --chown=0:0 rootfs /
+
 RUN --network=none <<RUNEOF
 set -eux -o pipefail
 
+export SYSTEMD_OFFLINE=1
+
+systemctl mask \
+  sys-kernel-debug.mount \
+  sys-kernel-tracing.mount \
+  systemd-update-done.service \
+  systemd-update-utmp.service \
+  systemd-update-utmp-runlevel.service \
+  systemd-tpm2-setup.service \
+  systemd-tpm2-setup-early.service \
+  getty.target \
+  console-getty.service \
+;
+
+systemctl disable \
+  fips-crypto-policy-overlay.service \
+  systemd-userdbd.socket \
+;
+
+systemctl enable \
+  tmp.mount \
+  sshd.socket \
+;
+
+cat <<'EOF' > /etc/ssh/sshd_config.d/0-devcontainer-custom.conf
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+EOF
+
 ln -s ../../bin/vi /usr/local/bin/vim
+
 
 cat <<'EOF' >> /etc/skel/.bashrc
 
@@ -178,26 +201,15 @@ echo "$DEV_USER_NAME ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/devuser
 install -o 0 -g 0 -m 600 /dev/null /var/db/sudo/lectured/"$DEV_USER_UID"
 
 #loginctl enable-linger "$DEV_USER_NAME"  # is not running
+mkdir -p /var/lib/systemd/linger
 touch /var/lib/systemd/linger/"$DEV_USER_NAME"
 
-runuser -u "$DEV_USER_NAME" -- systemd-tmpfiles --user  --create --remove --dry-run
+runuser -u "$DEV_USER_NAME" -- systemd-tmpfiles --user --create --remove --dry-run
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
 
 RUNEOF
 
-
-################################################################################
-
-FROM root
-
-COPY --from=build \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=build / /
 
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
