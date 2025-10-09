@@ -18,7 +18,7 @@ registry_instance=''
 _cleanup() {
   echo "[*] Cleaning up builder instance..."
 
-  (set -x; $BUILDX_CMD rm -f "$builder_instance") || :
+  (set -x; $BUILDX_CMD rm --force --keep-state "$builder_instance") || :
 
   (set -x; docker container stop "$registry_instance") || :
 }
@@ -54,9 +54,15 @@ main () {
 
   trap '_cleanup' EXIT
 
-  readonly BUILDX_CMD="docker-buildx"
-  readonly builder_instance=tmp-builder-$run_id
-  readonly registry_instance=tmp-registry-$run_id
+  if docker buildx version 2> /dev/null | grep -q 'github.com/docker/buildx' ; then
+    readonly BUILDX_CMD="docker buildx"
+  else # For podman.
+    readonly BUILDX_CMD="docker-buildx"
+  fi
+
+   # Use fixed name to keep cache
+  readonly builder_instance=tmp-builder
+  readonly registry_instance=tmp-registry
 
   mkdir -p "$BUILD_DIR"/registry
 
