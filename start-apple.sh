@@ -11,7 +11,7 @@ main() {
   ssh_port=52322
 
 
-  # FIXME: uid/gid mapping
+  # FIXME: volume ownership is root:root, not user:user
   if ! container volume inspect devcontainer-user-cache >& /dev/null; then
     container volume create devcontainer-user-cache
   fi
@@ -19,19 +19,21 @@ main() {
     container volume create devcontainer-user-local
   fi
 
-  (set -x; container run \
-    --cidfile "$cidfile" \
-    --name devcontainer \
-    --detach \
-    --tty \
-    --cpus 4 --memory 8G \
-    --user 0 \
-    --publish "127.0.0.1:${ssh_port}:22" \
-    --mount "type=volume,src=devcontainer-user-cache,dst=/home/user/.cache" \
-    --mount "type=volume,src=devcontainer-user-local,dst=/home/user/.local" \
-    --volume "${SCRIPT_DIR}/workspace:/workspace" \
-    ghcr.io/hsw0/test-devcontainer:master \
-  ;)
+  container_image="ghcr.io/hsw0/test-devcontainer:master"
+  args=(
+    --cidfile "$cidfile"
+    --name devcontainer
+    --detach
+    --tty
+    --cpus 4 --memory 8G
+    --user 0
+    --publish "127.0.0.1:${ssh_port}:22"
+    --mount "type=volume,src=devcontainer-user-cache,dst=/home/user/.cache"
+    --mount "type=volume,src=devcontainer-user-local,dst=/home/user/.local"
+    --volume "${SCRIPT_DIR}/workspace:/workspace"
+  )
+
+  (set -x; container run "${args[@]}" "$container_image")
 
   local -r cid=$(< "$cidfile")
   echo "[*] Container ID: ${cid}"

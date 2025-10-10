@@ -17,22 +17,31 @@ main() {
     podman volume create --uid $(id -u) --gid $(id -g) devcontainer-user-local
   fi
 
-  (set -x; podman container run \
-    --cidfile "$cidfile" \
-    --name devcontainer \
-    --detach \
-    --tty \
-    --cpus 4 --memory 8G \
-    --user 0 \
-    --systemd always \
-    --security-opt label=disable \
-    --cap-add SYS_PTRACE,SYS_ADMIN,MKNOD,NET_RAW,BPF,SYS_RESOURCE,SYS_NICE,IPC_LOCK,PERFMON \
-    --publish "127.0.0.1:${ssh_port}:22" \
-    --mount "type=volume,src=devcontainer-user-cache,dst=/home/user/.cache" \
-    --mount "type=volume,src=devcontainer-user-local,dst=/home/user/.local" \
-    --volume "${SCRIPT_DIR}/workspace:/workspace:Z" \
-    ghcr.io/hsw0/test-devcontainer:master \
-  ;)
+  container_image="ghcr.io/hsw0/test-devcontainer:master"
+  args=(
+    --cidfile "$cidfile"
+    --name devcontainer
+    --detach
+    --tty
+    --cpus 4 --memory 8G
+    --user 0
+    --systemd always
+    --security-opt label=disable
+    --cap-add SYS_PTRACE
+    --cap-add SYS_ADMIN
+    --cap-add MKNOD
+    --cap-add NET_RAW,BPF
+    --cap-add SYS_RESOURC
+    --cap-add SYS_NICE
+    --cap-add IPC_LOCK
+    --cap-add PERFMON
+    --publish "127.0.0.1:${ssh_port}:22"
+    --mount "type=volume,src=devcontainer-user-cache,dst=/home/user/.cache"
+    --mount "type=volume,src=devcontainer-user-local,dst=/home/user/.local"
+    --volume "${SCRIPT_DIR}/workspace:/workspace:Z"
+  )
+
+  (set -x; podman container run "${args[@]}" "$container_image")
 
   local -r cid=$(< "$cidfile")
   echo "[*] Container ID: ${cid}"
