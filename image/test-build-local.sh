@@ -90,7 +90,7 @@ main () {
 
   $BUILDX_CMD inspect --builder "$builder_instance"
 
-  export SOURCE_DATE_EPOCH=0
+  export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 
   build_image stage0
 
