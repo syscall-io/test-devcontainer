@@ -1,5 +1,38 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
+FROM stage0 AS download-bazelisk
+RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
+set -eux -o pipefail
+
+bazelisk_version='1.27.0'
+bazelisk_release_ts='2025-08-12T16:32:55Z'
+
+arch=$(rpm --eval '%{_arch}')
+case $arch in
+  x86_64) goarch='amd64' ; bazelisk_sha256='e1508323f347ad1465a887bc5d2bfb91cffc232d11e8e997b623227c6b32fb76' ;;
+  aarch64) goarch='arm64' ; bazelisk_sha256='bb608519a440d45d10304eb684a73a2b6bb7699c5b0e5434361661b25f113a5d' ;;
+  *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
+esac
+
+bazelisk_archive="/var/cache/download/${bazelisk_sha256}"
+
+if [[ ! -f "$bazelisk_archive" ]]; then
+  chmod 1777 /var/cache/download
+  tmpfile=$(runuser -u nobody -- mktemp -p /var/cache/download)
+  runuser -u nobody -- curl -fSLo "$tmpfile" "https://github.com/bazelbuild/bazelisk/releases/download/v${bazelisk_version}/bazelisk-linux-${goarch}"
+  echo "${bazelisk_sha256}  ${tmpfile}" | sha256sum -c --strict -
+  mv "$tmpfile" "$bazelisk_archive"
+fi
+
+
+install -o root -g root -m 755 "$bazelisk_archive" /usr/local/bin/bazelisk
+ln -s bazelisk /usr/local/bin/bazel
+
+touch --date="${bazelisk_release_ts}" /usr/local/bin/{bazelisk,bazel}
+
+RUNEOF
+
+
 FROM stage0 AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
@@ -153,6 +186,8 @@ RUNEOF
 
 FROM stage2
 
+COPY --link --from=download-bazelisk /usr/local/bin/bazelisk /usr/local/bin/bazel /usr/local/bin/
+
 COPY --link --from=download-uv /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 
 COPY --link --from=download-sccache /usr/local/bin/sccache /usr/local/bin/
@@ -197,6 +232,7 @@ runuser -u nobody -- python3 --version
 runuser -u nobody -- python3 -m pip --version
 runuser -u nobody -- java -version
 
+#runuser -u nobody -- bazelisk --version # Skipped: downloads latest bazel
 runuser -u nobody -- sccache --version
 runuser -u nobody -- cmake --version
 runuser -u nobody -- rustup --version
