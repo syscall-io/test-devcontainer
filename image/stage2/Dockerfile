@@ -41,13 +41,24 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install \
-  gcc gcc-c++ clang lld binutils elfutils \
   autoconf automake \
-  libtool libtool-ltdl pkgconf-pkg-config \
-  llvm clang-tools-extra \
-  gdb-gdbserver lldb \
-  flex bison byacc \
+  binutils \
+  bison \
+  byacc \
+  clang \
+  clang-tools-extra \
+  elfutils \
+  flex \
+  gcc gcc-c++ \
+  gdb-minimal gdb-gdbserver \
   gettext \
+  libtool libtool-ltdl \
+  lld \
+  lldb \
+  llvm \
+  pkgconf-pkg-config \
+  perl-FindBin \
+  perl-lib \
   readline \
 ;
 
@@ -56,19 +67,30 @@ set -eux -o pipefail
 ;
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs \
-  zlib-devel lz4-devel libzstd-devel \
-  gettext-devel ncurses-devel readline-devel \
-  elfutils-libelf-devel libunwind-devel \
-  nss-devel openssl-devel \
+  elfutils-libelf-devel \
+  gettext-devel \
+  libcap-devel \
   libcurl-devel \
-  libxml2-devel libxslt-devel \
-  sqlite-devel \
-  systemd-devel libcap-devel \
-  libevent-devel liburing-devel \
-  numactl-devel \
+  libevent-devel \
   libicu-devel \
-  uuid-devel \
+  libunwind-devel \
+  liburing-devel \
+  libxml2-devel \
+  libxslt-devel \
+  libzstd-devel \
+  lz4-devel \
+  ncurses-devel \
+  nss-devel \
+  numactl-devel \
+  openssl-devel \
+  pam-devel \
+  pcre2-devel \
+  readline-devel \
+  sqlite-devel \
   swig \
+  systemd-devel \
+  uuid-devel \
+  zlib-devel \
 ;
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
@@ -87,8 +109,7 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs  \
-  python3.12 python3.12-{pip,cffi,lxml,cryptography} \
-  python3.12-devel \
+  python3.12-devel python3.12-{pip,cffi,lxml,cryptography} \
 ;
 
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
