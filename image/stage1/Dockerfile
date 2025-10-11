@@ -59,6 +59,7 @@ set -eux -o pipefail
 /tmp/container-script/dnf-wrapper.sh install \
   7zip \
   acl \
+  bash-color-prompt \
   bash-completion \
   cpio \
   diffutils \
