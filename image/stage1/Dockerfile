@@ -114,7 +114,7 @@ set -eux -o pipefail
 
 ########################################
 
-systemd-tmpfiles --root=/rootfs --create /usr/lib/tmpfiles.d/rootfiles.conf
+systemd-tmpfiles --create /usr/lib/tmpfiles.d/rootfiles.conf
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
