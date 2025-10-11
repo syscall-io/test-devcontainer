@@ -71,13 +71,13 @@ FROM stage0 AS download-sccache
 RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-sccache_version='0.10.0'
-sccache_release_ts='2025-02-24T18:29:05Z'
+sccache_version='0.11.0'
+sccache_release_ts='2025-10-10T19:12:27Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='1fbb35e135660d04a2d5e42b59c7874d39b3deb17de56330b25b713ec59f849b' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='d6a1ce4acd02b937cd61bc675a8be029a60f7bc167594c33d75732bbc0a07400' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='c861cdb23e83433e1a9929f15b2e829c6f8f82d6e7ea2a6dc188b91e3c3e12fb' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='46aaa502e06fdf3ac4c96f6a58f3579c6f76c6bcb3062098a1101fcffda2d021' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
