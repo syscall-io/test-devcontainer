@@ -1,16 +1,49 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
+FROM stage0 AS download-bazelisk
+RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
+set -eux -o pipefail
+
+bazelisk_version='1.27.0'
+bazelisk_release_ts='2025-08-12T16:32:55Z'
+
+arch=$(rpm --eval '%{_arch}')
+case $arch in
+  x86_64) goarch='amd64' ; bazelisk_sha256='e1508323f347ad1465a887bc5d2bfb91cffc232d11e8e997b623227c6b32fb76' ;;
+  aarch64) goarch='arm64' ; bazelisk_sha256='bb608519a440d45d10304eb684a73a2b6bb7699c5b0e5434361661b25f113a5d' ;;
+  *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
+esac
+
+bazelisk_archive="/var/cache/download/${bazelisk_sha256}"
+
+if [[ ! -f "$bazelisk_archive" ]]; then
+  chmod 1777 /var/cache/download
+  tmpfile=$(runuser -u nobody -- mktemp -p /var/cache/download)
+  runuser -u nobody -- curl -fSLo "$tmpfile" "https://github.com/bazelbuild/bazelisk/releases/download/v${bazelisk_version}/bazelisk-linux-${goarch}"
+  echo "${bazelisk_sha256}  ${tmpfile}" | sha256sum -c --strict -
+  mv "$tmpfile" "$bazelisk_archive"
+fi
+
+
+install -o root -g root -m 755 "$bazelisk_archive" /usr/local/bin/bazelisk
+ln -s bazelisk /usr/local/bin/bazel
+
+touch --date="${bazelisk_release_ts}" /usr/local/bin/{bazelisk,bazel}
+
+RUNEOF
+
+
 FROM stage0 AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-uv_version='0.8.22'
-uv_release_ts='2025-09-23T20:35:51Z'
+uv_version='0.9.2'
+uv_release_ts='2025-10-10T19:02:50Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='741ff1f5742c5a4a25d2f829e8395355e43f7a5ae2ebc6368e9ae2df0efb69cf' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='726b72a137fda33565143325f7d31c42cd30ff9ccdf067e00d124d37b4081cb2' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='b775bb84c72210c6c0b9670cfaad0ac2e3953f12a2947d52b57603b4fbae3798' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='0f0ecf2abcb50f8fb5d2b52c8095af4c133897086e3f2e0259f4fcb3d8ddf273' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -38,13 +71,13 @@ FROM stage0 AS download-sccache
 RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-sccache_version='0.10.0'
-sccache_release_ts='2025-02-24T18:29:05Z'
+sccache_version='0.11.0'
+sccache_release_ts='2025-10-10T19:12:27Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='1fbb35e135660d04a2d5e42b59c7874d39b3deb17de56330b25b713ec59f849b' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='d6a1ce4acd02b937cd61bc675a8be029a60f7bc167594c33d75732bbc0a07400' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='c861cdb23e83433e1a9929f15b2e829c6f8f82d6e7ea2a6dc188b91e3c3e12fb' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='46aaa502e06fdf3ac4c96f6a58f3579c6f76c6bcb3062098a1101fcffda2d021' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -153,6 +186,8 @@ RUNEOF
 
 FROM stage2
 
+COPY --link --from=download-bazelisk /usr/local/bin/bazelisk /usr/local/bin/bazel /usr/local/bin/
+
 COPY --link --from=download-uv /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 
 COPY --link --from=download-sccache /usr/local/bin/sccache /usr/local/bin/
@@ -197,6 +232,7 @@ runuser -u nobody -- python3 --version
 runuser -u nobody -- python3 -m pip --version
 runuser -u nobody -- java -version
 
+#runuser -u nobody -- bazelisk --version # Skipped: downloads latest bazel
 runuser -u nobody -- sccache --version
 runuser -u nobody -- cmake --version
 runuser -u nobody -- rustup --version

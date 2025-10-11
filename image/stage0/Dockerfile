@@ -18,13 +18,16 @@ set -eux -o pipefail
 
 mkdir /rootfs
 
+rpmdb --root=/rootfs --initdb
+rpmkeys --root=/rootfs --import /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10
+rpmkeys --root=/rootfs --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
+
 /tmp/container-script/dnf-wrapper.sh install \
   --installroot=/rootfs \
   --releasever 10 \
   --nodocs \
   \
-  almalinux-release \
-  filesystem \
+  basesystem \
 ;
 
 /tmp/container-script/dnf-wrapper.sh install \
@@ -38,20 +41,21 @@ mkdir /rootfs
   tzdata \
   ca-certificates \
   crypto-policies \
-  libevent \
-  systemd-libs \
+  \
   dbus-libs \
+  libcurl-minimal \
+  libevent \
+  nss \
+  mpfr \
   openssl-libs \
-  libcurl \
-  glib2 \
-  libuuid \
-  libacl \
-  libattr \
   pcre2 \
-  ncurses-libs \
+  systemd-libs \
+  zlib \
 ;
 
-rpm --root=/rootfs --erase --verbose --nodeps bash coreutils coreutils-common grep sed findutils alternatives shadow-utils gawk openldap
+rpm --root=/rootfs --erase --verbose --nodeps \
+  bash coreutils coreutils-common grep sed findutils alternatives gawk \
+;
 
 /tmp/container-script/dnf-wrapper.sh autoremove \
   --installroot=/rootfs \
@@ -61,7 +65,7 @@ rpm --root=/rootfs --erase --verbose --nodeps bash coreutils coreutils-common gr
 
 find /rootfs/usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
 
-rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos /rootfs/var/lib/dnf/history*
+rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos
 rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
 rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
@@ -84,12 +88,11 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 # NOTE: rpm is signed.
+# NOTE: it's not x86_64. it's a noarch package.
 curl -fSL -o /tmp/epel-release.noarch.rpm https://repo.almalinux.org/almalinux/10/extras/x86_64/os/Packages/epel-release-10-6.el10.noarch.rpm
 
 rpm --root=/rootfs --checksig /tmp/epel-release.noarch.rpm
 rpm --root=/rootfs --install --verbose --nodeps /tmp/epel-release.noarch.rpm
-
-rpmkeys --root=/rootfs --import /rootfs/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
 
 /tmp/container-script/dnf-wrapper.sh install \
   --installroot=/rootfs \
@@ -102,11 +105,11 @@ rpmkeys --root=/rootfs --import /rootfs/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10
   dnf dnf-plugins-core \
   findutils \
   gawk \
+  gettext-envsubst \
   grep \
   gzip \
   jq \
   lz4 \
-  openldap \
   openssl \
   sed  \
   tar \
@@ -178,7 +181,7 @@ groupadd --root '/rootfs/' --system --password '!*' --gid 996 sgx
 
 find /rootfs/usr/lib/locale -maxdepth 1 -type d -name 'en*' \! \( -name 'en_US*' \) -exec rm -rf {} +
 
-rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos /rootfs/var/lib/dnf/history*
+rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /rootfs/var/cache/dnf /rootfs/var/lib/dnf/repos
 
 rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
 rm -rf /rootfs/usr/share/doc/*
