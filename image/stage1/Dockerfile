@@ -118,6 +118,8 @@ systemd-tmpfiles --create /usr/lib/tmpfiles.d/rootfiles.conf
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
+rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
+
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
