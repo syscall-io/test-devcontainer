@@ -103,7 +103,6 @@ main () {
   ;
 
   build_image stage3 \
-    --build-context stage0="docker-image://${REGISTRY_HOST}/tmp/stage0:run-${run_id}" \
     --build-context stage2="docker-image://${REGISTRY_HOST}/tmp/stage2:run-${run_id}" \
   ;
 
