@@ -124,6 +124,46 @@ find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIM
 
 RUNEOF
 
+FROM s1-install-packages AS s2-install-gui-base
+
+RUN --mount=from=container-script,target=/tmp/container-script,readonly \
+    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
+<<RUNEOF
+set -eux -o pipefail
+
+/tmp/container-script/dnf-wrapper.sh install \
+  --setopt=tsflags=nodocs \
+  fontconfig \
+  libfontenc \
+  mkfontscale \
+  ttmkfdir \
+  default-fonts-core \
+  default-fonts-cjk \
+  xorg-x11-fonts-Type1 \
+;
+
+/tmp/container-script/dnf-wrapper.sh install \
+  --setopt=tsflags=nodocs \
+  flatpak \
+  wayland-utils \
+  xorg-x11-xauth \
+  xterm \
+;
+
+/tmp/container-script/dnf-wrapper.sh install \
+  --setopt=tsflags=nodocs \
+  weston \
+  xorg-x11-server-Xwayland \
+;
+
+rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+
+RUNEOF
+
 
 ################################################################################
 
@@ -145,7 +185,14 @@ COPY --from=s1-install-packages \
   --exclude=var/cache/ldconfig/aux-cache \
   / /
 
-COPY --from=s1-install-packages / /
+COPY --from=s2-install-gui-base \
+  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
+  --exclude=var/lib/dnf/history.* \
+  --exclude=var/cache/ldconfig/aux-cache \
+  --exclude=usr/lib/fontconfig/cache/*.cache* \
+  / /
+
+COPY --from=s2-install-gui-base / /
 
 
 # NOTE: empty "from=" is default context
