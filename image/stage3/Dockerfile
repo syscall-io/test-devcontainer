@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM stage0 AS download-bazelisk
+FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS toolbox
+
+FROM toolbox AS download-bazelisk
 RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
@@ -33,7 +35,7 @@ touch --date="${bazelisk_release_ts}" /usr/local/bin/{bazelisk,bazel}
 RUNEOF
 
 
-FROM stage0 AS download-uv
+FROM toolbox AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
@@ -67,7 +69,7 @@ touch --date="${uv_release_ts}" /usr/local/bin/{uv,uvx}
 
 RUNEOF
 
-FROM stage0 AS download-sccache
+FROM toolbox AS download-sccache
 RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
@@ -102,7 +104,7 @@ touch --date="${sccache_release_ts}" /usr/local/bin/sccache
 RUNEOF
 
 
-FROM stage0 AS download-cmake
+FROM toolbox AS download-cmake
 RUN --mount=type=cache,id=download-cmake,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
@@ -141,7 +143,7 @@ find "$cmake_prefix" -mount -depth -exec touch --date="${cmake_release_ts}" --no
 RUNEOF
 
 
-FROM stage0 AS download-rust
+FROM toolbox AS download-rust
 
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV CARGO_HOME=/usr/local/cargo

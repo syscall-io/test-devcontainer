@@ -4,32 +4,7 @@ FROM stage1 AS root
 
 FROM root AS s0
 
-RUN --mount=from=container-script,target=/tmp/container-script,readonly \
-    --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
-<<RUNEOF
-set -eux -o pipefail
-
-/tmp/container-script/dnf-wrapper.sh install \
-  --setopt=tsflags=nodocs \
-  default-fonts-core \
-  default-fonts-cjk \
-  libXcomposite \
-  libXi \
-  libXtst \
-  libfontenc \
-  mkfontscale \
-  ttmkfdir \
-  wayland-utils \
-  xorg-x11-fonts-Type1 \
-  xorg-x11-xauth \
-  xterm \
-;
-
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
-
-RUNEOF
+# empty, reserved for future use
 
 FROM s0 AS s1
 
@@ -160,35 +135,30 @@ COPY --from=s0 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
 COPY --from=s1 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
 COPY --from=s2 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
 COPY --from=s3 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
 COPY --from=s4 \
   --exclude=usr/lib/sysimage/rpm/rpmdb.* \
   --exclude=var/lib/dnf/history.* \
   --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
   / /
 
 COPY --from=s4 / /

@@ -185,7 +185,6 @@ rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /ro
 
 rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
 rm -rf /rootfs/usr/share/doc/*
-rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
 
 rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 

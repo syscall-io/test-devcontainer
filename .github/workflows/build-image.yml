@@ -148,7 +148,6 @@ jobs:
           build-contexts: |
             repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
             container-script=image/container-script
-            stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
             stage2=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage2.outputs.imageid }}
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
