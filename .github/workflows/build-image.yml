@@ -156,7 +156,7 @@ jobs:
           cache-to: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }},mode=max
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-cache.${{ matrix.platform_id }}.${{ hashFiles('image/stage3/**') }},mode=max
-          sbom: true
+          #sbom: true
           provenance: true
           annotations: ${{ steps.docker-meta.outputs.annotations }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-build.${{ matrix.platform_id }}.${{ github.run_id }}
