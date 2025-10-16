@@ -217,6 +217,8 @@ python3 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
   ninja==1.13.0 \
 ;
 
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
+
 RUNEOF
 
 

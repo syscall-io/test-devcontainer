@@ -70,7 +70,8 @@ set -eux -o pipefail
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -89,7 +90,8 @@ set -eux -o pipefail
 
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -106,7 +108,8 @@ set -eux -o pipefail
   nodejs22 nodejs22-devel nodejs-npm \
 ;
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -123,7 +126,8 @@ set -eux -o pipefail
   java-21-openjdk-devel \
 ;
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
