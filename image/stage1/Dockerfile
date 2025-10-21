@@ -64,6 +64,7 @@ set -eux -o pipefail
   bash-completion \
   cpio \
   diffutils \
+  dos2unix \
   file \
   gawk \
   git-core \
