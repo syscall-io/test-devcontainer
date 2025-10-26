@@ -43,7 +43,8 @@ rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 ########################################
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -63,6 +64,7 @@ set -eux -o pipefail
   bash-completion \
   cpio \
   diffutils \
+  dos2unix \
   file \
   gawk \
   git-core \
@@ -121,6 +123,7 @@ rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
 
+rpm --restore --all || :
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -161,7 +164,8 @@ set -eux -o pipefail
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 
@@ -278,7 +282,10 @@ touch /var/lib/systemd/linger/"$DEV_USER_NAME"
 
 runuser -u "$DEV_USER_NAME" -- systemd-tmpfiles --user --create --remove --dry-run
 
-find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-dereference {} \;
+rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
+
+rpm --restore --all || :
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 

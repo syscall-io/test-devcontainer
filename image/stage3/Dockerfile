@@ -39,13 +39,13 @@ FROM toolbox AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-uv_version='0.9.2'
-uv_release_ts='2025-10-10T19:02:50Z'
+uv_version='0.9.5'
+uv_release_ts='2025-10-21T16:51:07Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='b775bb84c72210c6c0b9670cfaad0ac2e3953f12a2947d52b57603b4fbae3798' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='0f0ecf2abcb50f8fb5d2b52c8095af4c133897086e3f2e0259f4fcb3d8ddf273' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='9db0c2f6683099f86bfeea47f4134e915f382512278de95b2a0e625957594ff3' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -73,13 +73,13 @@ FROM toolbox AS download-sccache
 RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-sccache_version='0.11.0'
-sccache_release_ts='2025-10-10T19:12:27Z'
+sccache_version='0.12.0'
+sccache_release_ts='2025-10-20T22:38:10Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='c861cdb23e83433e1a9929f15b2e829c6f8f82d6e7ea2a6dc188b91e3c3e12fb' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='46aaa502e06fdf3ac4c96f6a58f3579c6f76c6bcb3062098a1101fcffda2d021' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='b0e89ead6899224a4ba2b90e9073bf1ce036d95bab30f3dc33c1e1468bc4ad44' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='111ddd28fb108cb3e17edb69ab62cefe1dcc97b02e5006ff9c1330f4f2e78368' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -108,15 +108,15 @@ FROM toolbox AS download-cmake
 RUN --mount=type=cache,id=download-cmake,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-cmake_version='4.1.1'
-cmake_release_ts='2025-08-27T17:46:25Z'
+cmake_version='4.1.2'
+cmake_release_ts='2025-09-30T16:00:04Z'
 cmake_version_major='4.1'
 cmake_prefix="/usr/local/cmake-${cmake_version_major}"
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) cmake_arch='x86_64' ; cmake_sha256='5a6c61cb62b38e153148a2c8d4af7b3d387f0c8c32b6dbceb5eb4af113efd65a' ;;
-  aarch64) cmake_arch='aarch64' ; cmake_sha256='a34bc76b1ebe76ca0bbd6067f68d4614b93221912770dc08f466aec1923e9bef' ;;
+  x86_64) cmake_arch='x86_64' ; cmake_sha256='773cc679c3a7395413bd096523f8e5d6c39f8718af4e12eb4e4195f72f35e4ab' ;;
+  aarch64) cmake_arch='aarch64' ; cmake_sha256='0634996f918b3bab11f45522899c81c987b09c9a64d15f6a0d2bb51c42099534' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -216,6 +216,8 @@ python3 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
   meson==1.9.1 \
   ninja==1.13.0 \
 ;
+
+find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
 

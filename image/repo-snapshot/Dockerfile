@@ -11,11 +11,13 @@ ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 RUN --mount=type=tmpfs,target=/run --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/var/log <<RUNEOF
 set -eux -o pipefail
 
-# NOTE: rpm is signed.
-curl -fSL -o /tmp/epel-release.noarch.rpm https://repo.almalinux.org/almalinux/10/extras/x86_64/os/Packages/epel-release-10-6.el10.noarch.rpm
+if ! rpm -q epel-release; then
+    # NOTE: rpm is signed.
+    curl -fSL -o /tmp/epel-release.noarch.rpm https://repo.almalinux.org/almalinux/10/extras/x86_64/os/Packages/epel-release-10-6.el10.noarch.rpm
 
-rpm --checksig /tmp/epel-release.noarch.rpm
-rpm --install --verbose /tmp/epel-release.noarch.rpm
+    rpm --checksig /tmp/epel-release.noarch.rpm
+    rpm --install --verbose /tmp/epel-release.noarch.rpm
+fi
 
 RUNEOF
 

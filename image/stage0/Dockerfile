@@ -71,6 +71,8 @@ rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 cp /var/cache/dnf/.reposnapshot.BUILDTIME /rootfs/etc/BUILDTIME
 touch --reference=/var/cache/dnf/.reposnapshot.BUILDTIME --no-create --no-dereference /rootfs/etc/BUILDTIME
+
+rpm --root=/rootfs --restore -all || :
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -123,6 +125,7 @@ rpm --root=/rootfs --erase --verbose --nodeps shadow-utils
 
 /tmp/container-script/dnf-wrapper.sh check dependencies
 
+rpm --root=/rootfs --restore --all || :
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -188,6 +191,7 @@ rm -rf /rootfs/usr/share/doc/*
 
 rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
+rpm --root=/rootfs --restore --all || :
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
