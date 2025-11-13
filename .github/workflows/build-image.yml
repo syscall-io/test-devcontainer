@@ -60,7 +60,7 @@ jobs:
           # nightly: @see https://github.com/moby/buildkit/commit/fe65d5ff62506d0bccdcc4641fad1920903fcf55
           # > remotecache: fix inline cache used with multiple exporters
           driver-opts: >-
-            image=docker.io/moby/buildkit:v0.25.1@sha256:79cc6476ab1a3371c9afd8b44e7c55610057c43e18d9b39b68e2b0c2475cc1b6
+            image=docker.io/moby/buildkit:v0.26.0@sha256:93da6a53287490dd3b35952f73a109654ed9f260f2e6434db925125fa3ac6b2a
           buildkitd-flags: >-
             --oci-worker-snapshotter=stargz
 
