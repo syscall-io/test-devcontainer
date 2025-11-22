@@ -3,7 +3,7 @@
 readonly SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 readonly BUILD_DIR=$(realpath "$SCRIPT_DIR"/../build)
 
-readonly buildkit_image='docker.io/moby/buildkit:v0.26.0@sha256:93da6a53287490dd3b35952f73a109654ed9f260f2e6434db925125fa3ac6b2a'
+readonly buildkit_image='docker.io/moby/buildkit:v0.26.2@sha256:de10faf919fc71ba4eb1dd7bd6449566d012b0c9436b1c61bfee21d621b009aa'
 
 readonly REGISTRY_PORT=51350
 readonly REGISTRY_HOST="localhost:${REGISTRY_PORT}"
