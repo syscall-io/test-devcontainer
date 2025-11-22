@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.20.0@sha256:26147acbda4f14c5add9946e2fd2ed543fc402884fd75146bd342a7f6271dc1d
 
-FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS toolbox
+FROM docker.io/almalinux/10-toolbox:10.0-20251117@sha256:0fb9c08b0b9d40aef015c4b8ecdcfed2badcda3e4e2b88771c8db0ad49c55481 AS toolbox
 
 FROM toolbox AS download-bazelisk
 RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
