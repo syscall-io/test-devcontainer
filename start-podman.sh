@@ -17,7 +17,7 @@ main() {
     podman volume create --uid $(id -u) --gid $(id -g) devcontainer-user-local
   fi
 
-  container_image="ghcr.io/hsw0/test-devcontainer:master"
+  container_image="ghcr.io/syscall-io/test-devcontainer:master"
   args=(
     --cidfile "$cidfile"
     --name devcontainer
