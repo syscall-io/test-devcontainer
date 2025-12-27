@@ -39,13 +39,13 @@ FROM toolbox AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-uv_version='0.9.9'
-uv_release_ts='2025-11-12T18:46:15Z'
+uv_version='0.9.18'
+uv_release_ts='2025-12-16T15:47:46Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='9ec303873e00deed44d1b2b52b85ab7aa55d849588d7242298748390eaea07ef' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='35cbad89f226a06cd8b295f946e7083e15cd6fa058e09c2e02bb388be39a8fe4' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='c2def3db178ade63933fa15ffc96e882c196ce53e06173dcee05b36c5f6f68f5' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='f8e23ec786b18660ade6b033b6191b7e9c283c872eeb8c4531d56a873decf160' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
