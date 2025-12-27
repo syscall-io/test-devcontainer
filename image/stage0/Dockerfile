@@ -2,7 +2,7 @@
 # Syntax: https://github.com/moby/buildkit/blob/v0.25/frontend/dockerfile/docs/reference.md
 
 # https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.toolbox
-FROM docker.io/almalinux/10-toolbox:10.0-20251117@sha256:0fb9c08b0b9d40aef015c4b8ecdcfed2badcda3e4e2b88771c8db0ad49c55481 AS s0
+FROM docker.io/almalinux/10-toolbox:10.1-20251124@sha256:5c733ba41634d8b760a437d43fb92d202ea33821d832b91656ad16e59ee30dc5 AS s0
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 ENV SYSTEMD_OFFLINE=1
