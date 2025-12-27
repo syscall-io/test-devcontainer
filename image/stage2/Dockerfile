@@ -123,7 +123,7 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs \
-  java-21-openjdk-devel \
+  java-25-openjdk-devel \
 ;
 
 rpm --restore --all || :
