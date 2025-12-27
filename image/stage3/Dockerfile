@@ -212,7 +212,7 @@ set -eux -o pipefail
 export SOURCE_DATE_EPOCH=0
 
 npm install --cache /var/cache/npm --global 'corepack@0.34.0' && rm -rf /root/.npm
-python3 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
+python3.13 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
   meson==1.9.1 \
   ninja==1.13.0 \
 ;
@@ -232,8 +232,8 @@ cd /usr/local/bin
 
 ln -s ../"cmake-${cmake_version_major}"/bin/* ./
 
-runuser -u nobody -- python3 --version
-runuser -u nobody -- python3 -m pip --version
+runuser -u nobody -- python3.13 --version
+runuser -u nobody -- python3.13 -m pip --version
 runuser -u nobody -- java -version
 
 #runuser -u nobody -- bazelisk --version # Skipped: downloads latest bazel
