@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
+# syntax=docker/dockerfile:1.20.0@sha256:26147acbda4f14c5add9946e2fd2ed543fc402884fd75146bd342a7f6271dc1d
 
-FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS toolbox
+FROM docker.io/almalinux/10-toolbox:10.1-20251124@sha256:5c733ba41634d8b760a437d43fb92d202ea33821d832b91656ad16e59ee30dc5 AS toolbox
 
 FROM toolbox AS download-bazelisk
 RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
@@ -39,13 +39,13 @@ FROM toolbox AS download-uv
 RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-uv_version='0.9.5'
-uv_release_ts='2025-10-21T16:51:07Z'
+uv_version='0.9.18'
+uv_release_ts='2025-12-16T15:47:46Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='9db0c2f6683099f86bfeea47f4134e915f382512278de95b2a0e625957594ff3' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='c2def3db178ade63933fa15ffc96e882c196ce53e06173dcee05b36c5f6f68f5' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='f8e23ec786b18660ade6b033b6191b7e9c283c872eeb8c4531d56a873decf160' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 

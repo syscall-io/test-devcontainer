@@ -1,13 +1,11 @@
-# syntax=docker/dockerfile:1.19.0@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
+# syntax=docker/dockerfile:1.20.0@sha256:26147acbda4f14c5add9946e2fd2ed543fc402884fd75146bd342a7f6271dc1d
 # Syntax: https://github.com/moby/buildkit/blob/v0.25/frontend/dockerfile/docs/reference.md
 
 # https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.toolbox
-FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS base
+FROM docker.io/almalinux/10-toolbox:10.1-20251124@sha256:5c733ba41634d8b760a437d43fb92d202ea33821d832b91656ad16e59ee30dc5 AS s0
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 ENV SYSTEMD_OFFLINE=1
-
-FROM docker.io/almalinux/10-toolbox:10.0-20250909@sha256:7008515eb22deb3ab06a6f7cefb9e6d561da65a12825364188511ea5a99c03e1 AS s0
 
 RUN --mount=from=container-script,target=/tmp/container-script,readonly \
     --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \

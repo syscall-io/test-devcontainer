@@ -31,9 +31,9 @@ jobs:
         include:
           # platform_id: For GH actions output discriminator.
           - platform_id: linux-amd64
-            runner: ubuntu-24.04
+            runner: custom-ubuntu-24.04-x86_64
           - platform_id: linux-arm64
-            runner: ubuntu-24.04-arm
+            runner: custom-ubuntu-24.04-aarch64
 
     permissions:
       contents: read
@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #  v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           # Reproduce the exact commit hash value
           fetch-depth: 0
@@ -55,12 +55,10 @@ jobs:
 
       - name: Setup Docker buildx
         id: setup-buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
         with:
-          # nightly: @see https://github.com/moby/buildkit/commit/fe65d5ff62506d0bccdcc4641fad1920903fcf55
-          # > remotecache: fix inline cache used with multiple exporters
           driver-opts: >-
-            image=docker.io/moby/buildkit:v0.25.1@sha256:79cc6476ab1a3371c9afd8b44e7c55610057c43e18d9b39b68e2b0c2475cc1b6
+            image=docker.io/moby/buildkit:v0.26.3@sha256:5601811fde88bb9e8a577bfe804af82bccb712e1cd07ff94663bded5e628cf75
           buildkitd-flags: >-
             --oci-worker-snapshotter=stargz
 
@@ -73,7 +71,7 @@ jobs:
 
       - name: Docker meta
         id: docker-meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           annotations: |
             org.opencontainers.image.created={{commit_date 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'}}
@@ -177,6 +175,7 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Retrieve build outputs
@@ -189,7 +188,7 @@ jobs:
 
       - name: Setup Docker buildx
         id: setup-buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Login to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
@@ -200,7 +199,7 @@ jobs:
 
       - name: Docker meta
         id: docker-meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -231,7 +230,7 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Create attestation
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        uses: actions/attest-build-provenance@00014ed6ed5efc5b1ab7f7f34a39eb55d41aa4f8 # v3.1.0
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.create-manifest.outputs.digest }}
