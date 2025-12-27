@@ -85,7 +85,7 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs  \
-  python3.12-devel python3.12-{pip,cffi,lxml,cryptography} \
+  python3.13 python3.13-devel python3.13-pip \
 ;
 
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
