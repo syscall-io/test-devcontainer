@@ -31,9 +31,9 @@ jobs:
         include:
           # platform_id: For GH actions output discriminator.
           - platform_id: linux-amd64
-            runner: ubuntu-24.04
+            runner: custom-ubuntu-24.04-x86_64
           - platform_id: linux-arm64
-            runner: ubuntu-24.04-arm
+            runner: custom-ubuntu-24.04-aarch64
 
     permissions:
       contents: read

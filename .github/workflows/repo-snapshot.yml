@@ -18,7 +18,7 @@ jobs:
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       tag: ${{ steps.tag.outputs.tag }}
-    runs-on: ubuntu-24.04
+    runs-on: custom-ubuntu-24.04-x86_64
     permissions:
       contents: read
       packages: write
