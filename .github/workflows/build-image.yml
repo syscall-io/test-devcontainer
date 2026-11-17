@@ -52,13 +52,15 @@ jobs:
           echo "git_tree_id=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
           echo "git_ref_name_escaped=$(echo '${{ github.ref_name }}' | sed 's/[^A-Za-z0-9._-]/-/g')" >> "$GITHUB_OUTPUT"
           echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+          source image/build-inputs.env
+          printf 'REPO_SNAPSHOT=%s\nBUILDKIT_IMAGE=%s\n' "$REPO_SNAPSHOT" "$BUILDKIT_IMAGE" >> "$GITHUB_ENV"
 
       - name: Setup Docker buildx
         id: setup-buildx
         uses: docker/setup-buildx-action@v4.4.1
         with:
           driver-opts: >-
-            image=docker.io/moby/buildkit:v0.35.0@sha256:aa632b921ef07411d2cb77292cd34213d4f7b384001d6fceef1e1f25bf9752bb
+            image=${{ env.BUILDKIT_IMAGE }}
           buildkitd-flags: >-
             --oci-worker-snapshotter=overlayfs
 
@@ -85,7 +87,7 @@ jobs:
         with:
           context: image/stage0/
           build-contexts: |
-            repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            repo-snapshot=docker-image://${{ env.REPO_SNAPSHOT }}
             container-script=image/container-script
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage0-cache.${{ matrix.platform_id }}.${{ steps.git-info.outputs.git_ref_name_escaped }}
@@ -105,7 +107,7 @@ jobs:
         with:
           context: image/stage1/
           build-contexts: |
-            repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            repo-snapshot=docker-image://${{ env.REPO_SNAPSHOT }}
             container-script=image/container-script
             stage0=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage0.outputs.imageid }}
           cache-from: |
@@ -126,7 +128,7 @@ jobs:
         with:
           context: image/stage2/
           build-contexts: |
-            repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            repo-snapshot=docker-image://${{ env.REPO_SNAPSHOT }}
             container-script=image/container-script
             stage1=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage1.outputs.imageid }}
           cache-from: |
@@ -145,7 +147,7 @@ jobs:
         with:
           context: image/stage3/
           build-contexts: |
-            repo-snapshot=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/almalinux-repo-snapshot:latest
+            repo-snapshot=docker-image://${{ env.REPO_SNAPSHOT }}
             container-script=image/container-script
             stage2=docker-image://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage2.outputs.imageid }}
           cache-from: |
@@ -161,10 +163,18 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:stage3-build.${{ matrix.platform_id }}.${{ github.run_id }}
           outputs: type=registry,name-canonical=true,oci-mediatypes=true,oci-artifact=true,compression=estargz,store=false
 
+      - name: Rechunk and publish package layers
+        env:
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp@${{ steps.build-stage3.outputs.digest }}
+          DESTINATION_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/tmp:chunked-build.${{ matrix.platform_id }}.${{ github.run_id }}
+          CHUNK_OUTPUT: ${{ runner.temp }}/chunked
+          BUILDER: ${{ steps.setup-buildx.outputs.name }}
+        run: image/rechunk/publish.sh "$SOURCE_IMAGE" "$DESTINATION_IMAGE" "$CHUNK_OUTPUT" "$BUILDER"
+
       - name: Collect output
         id: collect-output
         run: |
-          printf "metadata-%s=%s\n" '${{ matrix.platform_id }}' "$(base64 --wrap=0 <<< '${{ steps.build-stage3.outputs.metadata }}')" >> "$GITHUB_OUTPUT"
+          printf "metadata-%s=%s\n" '${{ matrix.platform_id }}' "$(base64 --wrap=0 < '${{ runner.temp }}/chunked/metadata.json')" >> "$GITHUB_OUTPUT"
 
   merge:
     runs-on: ubuntu-latest

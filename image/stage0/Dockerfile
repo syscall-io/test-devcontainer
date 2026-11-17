@@ -203,21 +203,7 @@ RUNEOF
 
 FROM scratch
 
-COPY --from=s0 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=etc/ld.so.cache \
-  --exclude=var/cache/ldconfig/aux-cache \
-  /rootfs/ /
-
-COPY --from=s1 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  /rootfs/ /
-
 COPY --from=s1 /rootfs/ /
-# Intended: Add excluded files back
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 CMD ["/bin/bash"]

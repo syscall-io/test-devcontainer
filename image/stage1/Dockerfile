@@ -175,33 +175,11 @@ RUNEOF
 
 ################################################################################
 
-FROM root
+FROM s2-install-gui-base
 
 ARG DEV_USER_UID=1000
 ARG DEV_USER_GID=1000
 ARG DEV_USER_NAME=user
-
-COPY --from=s0-install-systemd \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s1-install-packages \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s2-install-gui-base \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  --exclude=usr/lib/fontconfig/cache/*.cache* \
-  / /
-
-COPY --from=s2-install-gui-base / /
-
 
 # NOTE: empty "from=" is default context
 RUN --mount=from=,target=/tmp/src \

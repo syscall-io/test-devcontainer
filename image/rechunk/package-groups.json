@@ -1,0 +1,15 @@
+{
+  "java": {
+    "packages": ["java-*-openjdk*", "javapackages-*"],
+    "paths": ["/usr/lib/jvm"],
+    "update_interval": "monthly"
+  },
+  "x11": {
+    "packages": [
+      "libX*", "libxcb*", "libxkbcommon*", "libxkbfile*",
+      "xorg-x11-*", "xkeyboard-config", "xterm", "xcb-util*"
+    ],
+    "paths": ["/usr/share/X11"],
+    "update_interval": "quarterly"
+  }
+}
