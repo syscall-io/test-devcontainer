@@ -14,7 +14,12 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 <<RUNEOF
 set -eux -o pipefail
 
-mkdir /rootfs
+mkdir -p /rootfs/etc
+
+cp /var/cache/dnf/.reposnapshot.BUILDTIME /rootfs/etc/BUILDTIME
+cp /var/cache/dnf/.reposnapshot.BUILDEPOCH /rootfs/etc/BUILDEPOCH
+export SOURCE_DATE_EPOCH=$(< /rootfs/etc/BUILDEPOCH)
+touch -t "$(date --date="@$SOURCE_DATE_EPOCH" '+%Y%m%d%H%M.%S')" --no-create --no-dereference /rootfs/etc/BUILD{TIME,EPOCH}
 
 rpmdb --root=/rootfs --initdb
 rpmkeys --root=/rootfs --import /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10
@@ -67,11 +72,8 @@ rm -rf /rootfs/var/log/dnf* /rootfs/var/log/yum.* /rootfs/var/log/hawkey.log /ro
 rm -rf /rootfs/boot /rootfs/dev/null /rootfs/run/*
 rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
-cp /var/cache/dnf/.reposnapshot.BUILDTIME /rootfs/etc/BUILDTIME
-touch --reference=/var/cache/dnf/.reposnapshot.BUILDTIME --no-create --no-dereference /rootfs/etc/BUILDTIME
-
 rpm --root=/rootfs --restore -all || :
-(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
+(cp -r /rootfs/usr/lib/sysimage/rpm{,.tmp} && rm -rf /rootfs/usr/lib/sysimage/rpm && mv /rootfs/usr/lib/sysimage/rpm{.tmp,} && rpmdb --root=/rootfs --parkdb)
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -87,6 +89,8 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
     --mount=type=cache,from=repo-snapshot,target=/var/cache/dnf --mount=type=tmpfs,target=/var/lib/dnf/repos \
 <<RUNEOF
 set -eux -o pipefail
+
+export SOURCE_DATE_EPOCH=$(< /rootfs/etc/BUILDEPOCH)
 
 # NOTE: rpm is signed.
 # NOTE: it's not x86_64. it's a noarch package.

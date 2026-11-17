@@ -23,6 +23,8 @@ main() {
 
   export SYSTEMD_OFFLINE=1
 
+  [[ -f /etc/BUILDEPOCH ]] && export SOURCE_DATE_EPOCH=$(< /etc/BUILDEPOCH)
+
   set -x
   exec dnf "${options[@]}" "$@"
 
