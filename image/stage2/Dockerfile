@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.22.0@sha256:4a43a54dd1fedceb30ba47e76cfcf2b47304f4161c0caeac2db1c61804ea3c91
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
 FROM stage1 AS root
 
@@ -71,6 +71,7 @@ set -eux -o pipefail
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -85,12 +86,13 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs  \
-  python3.13 python3.13-devel python3.13-pip \
+  python3.14 python3.14-devel python3.14-pip \
 ;
 
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -105,10 +107,11 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs \
-  nodejs22 nodejs22-devel nodejs-npm \
+  nodejs24 nodejs24-devel nodejs24-npm \
 ;
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -127,6 +130,7 @@ set -eux -o pipefail
 ;
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF

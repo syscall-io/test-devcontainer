@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.22.0@sha256:4a43a54dd1fedceb30ba47e76cfcf2b47304f4161c0caeac2db1c61804ea3c91
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
 FROM stage0 AS root
 
@@ -44,6 +44,7 @@ rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 ########################################
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -124,6 +125,7 @@ rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -165,6 +167,7 @@ set -eux -o pipefail
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -285,6 +288,7 @@ runuser -u "$DEV_USER_NAME" -- systemd-tmpfiles --user --create --remove --dry-r
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 rpm --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF

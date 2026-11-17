@@ -1,8 +1,8 @@
-# syntax=docker/dockerfile:1.22.0@sha256:4a43a54dd1fedceb30ba47e76cfcf2b47304f4161c0caeac2db1c61804ea3c91
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 # Syntax: https://github.com/moby/buildkit/blob/v0.25/frontend/dockerfile/docs/reference.md
 
 # https://raw.githubusercontent.com/AlmaLinux/container-images/9ec2d07542f07e6781d6f388e66f1e3f2aac889e/Containerfiles/10/Containerfile.toolbox
-FROM docker.io/almalinux/10-toolbox:10.1-20260129@sha256:204d8dde5b69e09a4f9fa66e5cc8e3d71ed48eb64dcbcaea3768a56bc8671cd7 AS s0
+FROM docker.io/almalinux/10-toolbox:10.3-20261116@sha256:6e37c1eae6c57189c8d90bd6b35497405df34e1f766ea7e6498e4afbb98a5e4f AS s0
 
 ENV LANG=C LC_CTYPE=C.UTF-8 LC_COLLATE=C
 ENV SYSTEMD_OFFLINE=1
@@ -71,6 +71,7 @@ cp /var/cache/dnf/.reposnapshot.BUILDTIME /rootfs/etc/BUILDTIME
 touch --reference=/var/cache/dnf/.reposnapshot.BUILDTIME --no-create --no-dereference /rootfs/etc/BUILDTIME
 
 rpm --root=/rootfs --restore -all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -124,6 +125,7 @@ rpm --root=/rootfs --erase --verbose --nodeps shadow-utils
 /tmp/container-script/dnf-wrapper.sh check dependencies
 
 rpm --root=/rootfs --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
@@ -190,6 +192,7 @@ rm -rf /rootfs/usr/share/doc/*
 rm -f /rootfs/etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
 rpm --root=/rootfs --restore --all || :
+(cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
 find /rootfs -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
 
 RUNEOF
