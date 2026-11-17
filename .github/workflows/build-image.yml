@@ -60,7 +60,7 @@ jobs:
           driver-opts: >-
             image=docker.io/moby/buildkit:v0.35.0@sha256:aa632b921ef07411d2cb77292cd34213d4f7b384001d6fceef1e1f25bf9752bb
           buildkitd-flags: >-
-            --oci-worker-snapshotter=stargz
+            --oci-worker-snapshotter=overlayfs
 
       - name: Login to Container Registry
         uses: docker/login-action@v4.8.0
