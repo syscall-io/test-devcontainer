@@ -122,7 +122,7 @@ systemd-tmpfiles --create /usr/lib/tmpfiles.d/rootfiles.conf
 
 rm -f /etc/{passwd,shadow,group,gshadow,subuid,subgid}-
 
-rm -f /rootfs/usr/share/cracklib/*.{hwm,pwd,pwi}
+rm -f /usr/share/cracklib/*.{hwm,pwd,pwi}
 
 rpm --restore --all || :
 (cp -r /usr/lib/sysimage/rpm{,.tmp} && rm -rf /usr/lib/sysimage/rpm && mv /usr/lib/sysimage/rpm{.tmp,} && rpmdb --parkdb)
