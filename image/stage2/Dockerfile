@@ -86,7 +86,7 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs  \
-  python3.13 python3.13-devel python3.13-pip \
+  python3.14 python3.14-devel python3.14-pip \
 ;
 
 alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 110
@@ -107,7 +107,7 @@ RUN --mount=from=container-script,target=/tmp/container-script,readonly \
 set -eux -o pipefail
 
 /tmp/container-script/dnf-wrapper.sh install --setopt=tsflags=nodocs \
-  nodejs22 nodejs22-devel nodejs-npm \
+  nodejs24 nodejs24-devel nodejs24-npm \
 ;
 
 rpm --restore --all || :

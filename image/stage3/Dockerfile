@@ -1,18 +1,20 @@
 # syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
+ARG UV_IMG=ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85
+
 FROM docker.io/almalinux/10-toolbox:10.3-20261116@sha256:6e37c1eae6c57189c8d90bd6b35497405df34e1f766ea7e6498e4afbb98a5e4f AS toolbox
 
 FROM toolbox AS download-bazelisk
 RUN --mount=type=cache,id=download-bazelisk,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-bazelisk_version='1.27.0'
-bazelisk_release_ts='2025-08-12T16:32:55Z'
+bazelisk_version='1.30.0'
+bazelisk_release_ts='2026-10-20T23:17:24Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) goarch='amd64' ; bazelisk_sha256='e1508323f347ad1465a887bc5d2bfb91cffc232d11e8e997b623227c6b32fb76' ;;
-  aarch64) goarch='arm64' ; bazelisk_sha256='bb608519a440d45d10304eb684a73a2b6bb7699c5b0e5434361661b25f113a5d' ;;
+  x86_64) goarch='amd64' ; bazelisk_sha256='a248ae2b2b62b5baebb748f6fba7203bff1a27e5d01b55399a8406744cb539e8' ;;
+  aarch64) goarch='arm64' ; bazelisk_sha256='b2bcc040c213b44586b121bda6d983c35df121b917c3a7a66fb16f2fa0df1a4f' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -34,52 +36,19 @@ touch --date="${bazelisk_release_ts}" /usr/local/bin/{bazelisk,bazel}
 
 RUNEOF
 
-
-FROM toolbox AS download-uv
-RUN --mount=type=cache,id=download-uv,target=/var/cache/download <<RUNEOF
-set -eux -o pipefail
-
-uv_version='0.10.9'
-uv_release_ts='2026-03-06T21:24:15Z'
-
-arch=$(rpm --eval '%{_arch}')
-case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; uv_sha256='20d79708222611fa540b5c9ed84f352bcd3937740e51aacc0f8b15b271c57594' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; uv_sha256='cc0c5a8573e7d6d78aecb954e0a62b5c0d18217bb81f1e19363b428c57a9962a' ;;
-  *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
-esac
-
-
-uv_archive="/var/cache/download/${uv_sha256}"
-
-if [[ ! -f "$uv_archive" ]]; then
-  chmod 1777 /var/cache/download
-  tmpfile=$(runuser -u nobody -- mktemp -p /var/cache/download)
-  runuser -u nobody -- curl -fSLo "$tmpfile"  "https://github.com/astral-sh/uv/releases/download/${uv_version}/uv-${rust_arch}.tar.gz"
-  echo "${uv_sha256}  ${tmpfile}" | sha256sum -c --strict -
-  mv "$tmpfile" "$uv_archive"
-fi
-
-tmpdir=$(runuser -u nobody -- mktemp -d)
-cd "$tmpdir"
-
-tar xvf "$uv_archive" --strip-components=1
-install -o root -g root -m 755 uv uvx /usr/local/bin/
-touch --date="${uv_release_ts}" /usr/local/bin/{uv,uvx}
-
-RUNEOF
+FROM ${UV_IMG} AS download-uv
 
 FROM toolbox AS download-sccache
 RUN --mount=type=cache,id=download-sccache,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-sccache_version='0.14.0'
-sccache_release_ts='2026-02-09T15:22:39Z'
+sccache_version='0.19.0'
+sccache_release_ts='2026-10-24T10:25:17Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='8424b38cda4ecce616a1557d81328f3d7c96503a171eab79942fad618b42af44' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='62a6c942c47c93333bc0174704800cef7edfa0416d08e1356c1d3e39f0b462f2' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-musl' ; sccache_sha256='aa73c7270c997894038c0d8f0d297865f57569e1687883322bc431713d4bb9dd' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-musl' ; sccache_sha256='3e47fc4a71b1ddd1b4294a0de9d34498922fdf41e3cd0bda5df3954e3d6deb9d' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -108,15 +77,15 @@ FROM toolbox AS download-cmake
 RUN --mount=type=cache,id=download-cmake,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-cmake_version='4.1.2'
-cmake_release_ts='2025-09-30T16:00:04Z'
-cmake_version_major='4.1'
+cmake_version='4.5.0'
+cmake_release_ts='2026-11-12T18:53:08Z'
+cmake_version_major='4.5'
 cmake_prefix="/usr/local/cmake-${cmake_version_major}"
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) cmake_arch='x86_64' ; cmake_sha256='773cc679c3a7395413bd096523f8e5d6c39f8718af4e12eb4e4195f72f35e4ab' ;;
-  aarch64) cmake_arch='aarch64' ; cmake_sha256='0634996f918b3bab11f45522899c81c987b09c9a64d15f6a0d2bb51c42099534' ;;
+  x86_64) cmake_arch='x86_64' ; cmake_sha256='81f0d5b0960fb6adc8197030ffc827fba937640d51e73e39e0e9e40d88c66f6f' ;;
+  aarch64) cmake_arch='aarch64' ; cmake_sha256='0c8447e7bba9701467b5ac6155d157aa9e309e71af4981f78bd4b9176107f553' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -152,13 +121,13 @@ ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,id=download-rustup,target=/var/cache/download <<RUNEOF
 set -eux -o pipefail
 
-rustup_version='1.28.2'
-rustup_release_ts='2025-05-05T16:01:20Z'
+rustup_version='1.29.3'
+rustup_release_ts='2026-11-03T16:29:35Z'
 
 arch=$(rpm --eval '%{_arch}')
 case $arch in
-  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; rustup_sha256='20a06e644b0d9bd2fbdbfd52d42540bdde820ea7df86e92e533c073da0cdd43c' ;;
-  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; rustup_sha256='e3853c5a252fca15252d07cb23a1bdd9377a8c6f3efa01531109281ae47f841c' ;;
+  x86_64) rust_arch='x86_64-unknown-linux-gnu' ; rustup_sha256='b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55' ;;
+  aarch64) rust_arch='aarch64-unknown-linux-gnu' ; rustup_sha256='9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282' ;;
   *) echo "Unsupported architecture: $arch" >&2 ; exit 1 ;;
 esac
 
@@ -190,7 +159,7 @@ FROM stage2
 
 COPY --link --from=download-bazelisk /usr/local/bin/bazelisk /usr/local/bin/bazel /usr/local/bin/
 
-COPY --link --from=download-uv /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
+COPY --link --chown=0:0 --chmod=0755 --from=download-uv /uv /uvx /usr/local/bin/
 
 COPY --link --from=download-sccache /usr/local/bin/sccache /usr/local/bin/
 
@@ -211,10 +180,9 @@ set -eux -o pipefail
 
 export SOURCE_DATE_EPOCH=0
 
-npm install --cache /var/cache/npm --global 'corepack@0.34.0' && rm -rf /root/.npm
-python3.13 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
-  meson==1.9.1 \
-  ninja==1.13.0 \
+python3.14 -m pip --disable-pip-version-check --cache-dir /var/cache/pip install \
+  meson==1.12.1 \
+  ninja==1.13.2 \
 ;
 
 find / -mount -depth -newer /etc/BUILDTIME -exec touch --reference=/etc/BUILDTIME --no-create --no-dereference {} \;
@@ -225,15 +193,15 @@ RUNEOF
 RUN --network=none --mount=type=tmpfs,target=/tmp <<RUNEOF
 set -eux -o pipefail
 
-cmake_version_major=4.1
+cmake_version_major=4.5
 cmake_prefix="/usr/local/cmake-${cmake_version_major}"
 
 cd /usr/local/bin
 
 ln -s ../"cmake-${cmake_version_major}"/bin/* ./
 
-runuser -u nobody -- python3.13 --version
-runuser -u nobody -- python3.13 -m pip --version
+runuser -u nobody -- python3.14 --version
+runuser -u nobody -- python3.14 -m pip --version
 runuser -u nobody -- java -version
 
 #runuser -u nobody -- bazelisk --version # Skipped: downloads latest bazel
@@ -241,6 +209,5 @@ runuser -u nobody -- sccache --version
 runuser -u nobody -- cmake --version
 runuser -u nobody -- rustup --version
 runuser -u nobody -- uv --version
-runuser -u nobody -- corepack --version
 
 RUNEOF
