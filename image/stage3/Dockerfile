@@ -157,7 +157,7 @@ RUNEOF
 
 FROM stage2
 
-COPY --link --from=download-bazelisk /usr/local/bin/bazelisk /usr/local/bin/bazel /usr/local/bin/
+COPY --link --from=download-bazelisk /usr/local/bin/bazelisk /usr/local/bin/
 
 COPY --link --chown=0:0 --chmod=0755 --from=download-uv /uv /uvx /usr/local/bin/
 
@@ -199,6 +199,7 @@ cmake_prefix="/usr/local/cmake-${cmake_version_major}"
 cd /usr/local/bin
 
 ln -s ../"cmake-${cmake_version_major}"/bin/* ./
+ln -s bazelisk bazel
 
 runuser -u nobody -- python3.14 --version
 runuser -u nobody -- python3.14 -m pip --version

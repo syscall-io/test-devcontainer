@@ -2,11 +2,7 @@
 
 FROM stage1 AS root
 
-FROM root AS s0
-
-# empty, reserved for future use
-
-FROM s0 AS s1
+FROM root AS s1
 
 RUN --mount=from=container-script,target=/tmp/container-script,readonly \
     --mount=type=tmpfs,target=/tmp --mount=type=tmpfs,target=/run \
@@ -137,36 +133,4 @@ RUNEOF
 
 ################################################################################
 
-FROM root
-
-COPY --from=s0 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s1 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s2 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s3 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s4 \
-  --exclude=usr/lib/sysimage/rpm/rpmdb.* \
-  --exclude=var/lib/dnf/history.* \
-  --exclude=var/cache/ldconfig/aux-cache \
-  / /
-
-COPY --from=s4 / /
+FROM s4
